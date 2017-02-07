@@ -26,7 +26,11 @@ debug:
 ramdebug: 
 	@$(MAKE) -f application.mk ramdebug	
 
-.PHONY: flashburn runram reset test readfullflash
+.PHONY: flash_OTA flashburn runram reset test readfullflash
+
+flash_OTA: 
+	JLinkGDB_OTA.bat
+
 flashburn: 
 	JLinkGDB-WrFlash.bat
 	#@$(MAKE) -f flasher.mk flashburn
@@ -51,3 +55,5 @@ readfullflash:
 prerequirement:
 #	@$(file >DEPENDENCY_LIST.txt,$(DEPENDENCY_LIST))
 	
+TARGETTYPE := APP
+TARGETNAME := build\obj\build.axf
