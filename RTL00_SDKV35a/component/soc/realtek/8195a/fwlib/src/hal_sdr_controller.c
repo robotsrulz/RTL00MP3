@@ -7,13 +7,21 @@
  *  possession or use of this module requires written permission of RealTek.
  */
 #include "rtl8195a.h"
+#include "platform_opts.h"
 #include "hal_sdr_controller.h"
 #include "rtl8195a_sdr.h"
 #include "flash_api.h"
 
 #ifdef CONFIG_SDR_EN 
 
-#define SDRAM_INIT_USE_TCM_HEAP
+#ifndef USE_SRC_ONLY_BOOT
+#define USE_SRC_ONLY_BOOT	0
+#endif
+
+#if !USE_SRC_ONLY_BOOT
+//#define SDRAM_INIT_USE_TCM_HEAP
+//#define SDRAM_INIT_USE_FLASH_API
+#endif
 
 
 #if 0
@@ -36,7 +44,9 @@
 //#define CONFIG_SDR_VERIFY
 
 extern SPIC_INIT_PARA SpicInitParaAllClk[3][CPU_CLK_TYPE_NO];
+extern DRAM_DEVICE_INFO SdrDramInfo;
 
+/*
 HAL_CUT_B_RAM_DATA_SECTION
 DRAM_INFO SdrDramDev = {
   DRAM_INFO_TYPE,
@@ -83,7 +93,7 @@ DRAM_DEVICE_INFO SdrDramInfo = {
   DRAM_TIMING_TCK,
   DFI_RATIO_1
 };
-
+*/
 
 #define FPGA
 #define FPGA_TEMP
@@ -122,9 +132,11 @@ u32 SdrCalibration(VOID);
 //#define Sdr_Rand2 Rand
 
 #ifndef SDRAM_INIT_USE_TCM_HEAP
+#if !USE_SRC_ONLY_BOOT
 //3 Note: stack overfloat if the arrary is declared in the task
-HAL_CUT_B_RAM_DATA_SECTION
-u32  AvaWds[2][REC_NUM];
+//HAL_CUT_B_RAM_DATA_SECTION
+extern u32  AvaWds[2][REC_NUM];
+#endif
 #else
 typedef struct {
 	u32 m[2][REC_NUM];
@@ -137,6 +149,12 @@ HAL_CUT_B_RAM_DATA_SECTION
 unsigned int rand_x = 123456789;
 */
 #ifdef CONFIG_SDR_EN
+
+//#pragma arm section code = ".hal.sdrc.text"
+#pragma arm section rodata = ".rodata.hal.sdrc"
+//, rwdata = ".hal.sdrc.data"
+//, zidata = ".hal.sdrc.bss"
+//#pragma arm section bss = ".hal.sdrc.bss"
 
 #ifdef CONFIG_SDR_VERIFY
 enum{
@@ -294,7 +312,7 @@ SdrTestApp(
 
                 //1 "SdrControllerInit" is located in Image1, so we shouldn't call it in Image2 
                 if (!SdrControllerInit()) {
-                    DBG_8195A("SDR Calibartion Fail!!!!\n");
+                    DBG_8195A("SDR Calibartion Fail!\n");
                 }
             break;
         case 2:
@@ -366,7 +384,9 @@ VOID
 ){
 //	ConfigDebugErr |=  _DBG_MISC_;
 //    DBG_8195A("SDR Ctrl Init\n");
-    HAL_WRITE32(0x40000000, 0x40, ((HAL_READ32(0x40000000, 0x40)&0xfffff)|0xe00000));
+    HAL_SYS_CTRL_WRITE32(REG_SYS_REGU_CTRL0,
+                        ((HAL_SYS_CTRL_READ32(REG_SYS_REGU_CTRL0) & 0xfffff) | BIT_SYS_REGU_LDO25M_ADJ(0x0e)));
+
     LDO25M_CTRL(ON);
 }
 
@@ -379,8 +399,8 @@ VOID
 //	ConfigDebugErr |=  _DBG_MISC_;
     DBG_8195A("SDR Controller Init\n");
 
-    HAL_WRITE32(0x40000000, 0x40,
-                        ((HAL_READ32(0x40000000, 0x40)&0xfffff)|0x300000));
+    HAL_SYS_CTRL_WRITE32(REG_SYS_REGU_CTRL0,
+                        ((HAL_SYS_CTRL_READ32(REG_SYS_REGU_CTRL0) & 0xfffff) | BIT_SYS_REGU_LDO25M_ADJ(0x03)));
 
     SRAM_MUX_CFG(0x2);
 
@@ -419,6 +439,7 @@ DramInit (
     IN  DRAM_DEVICE_INFO *DramInfo
 )
 {
+	DBG_8195A("%s(%p)\n", __func__, DramInfo);
     u32 CsBstLen = 0;            // 0:bst_4, 1:bst_8
     u32 CasWr = 0;//, CasWrT;       // cas write latency
     u32 CasRd = 0, CasRdT = 0, CrlSrt = 0;  // cas read latency
@@ -433,7 +454,7 @@ DramInit (
     u32 DfiRate;
     volatile struct ms_rxi310_portmap *ms_ctrl_0_map;
     ms_ctrl_0_map = (struct ms_rxi310_portmap*) SDR_CTRL_BASE;
-    ms_ctrl_0_map = ms_ctrl_0_map;
+//    ms_ctrl_0_map = ms_ctrl_0_map;
 
     DfiRate = 1 << (u32) (DramInfo->DfiRate);
     DrmaPeriod = (DramInfo->DdrPeriodPs)*(DfiRate); // according DFI_RATE to setting
@@ -444,7 +465,7 @@ DramInit (
     CrTwr = ((DramInfo->Timing->TwrPs) / DrmaPeriod) + 3;
 
     if (CrTwr < DramMaxWr) {
-        CrTwr = CrTwr;
+//        CrTwr = CrTwr;
     }
     else {
         CrTwr = DramMaxWr;
@@ -729,6 +750,7 @@ SdrCalibration(
 #else
 //    u32 Value32;
 #endif
+	DBG_8195A("%s()\n", __func__);
     u32 RdPipe = 0, TapCnt = 0, Pass = 0, AvaWdsCnt = 0;
     u32 RdPipeCounter, RecNum[2], RecRdPipe[2];//, AvaWds[2][REC_NUM];
     BOOL RdPipeFlag, PassFlag = 0, Result; 
@@ -744,8 +766,10 @@ SdrCalibration(
 	u32 valid;
 	union { u8 b[4]; u32 l;} value;
 ////
+#ifdef	SDRAM_INIT_USE_FLASH_API
 	flash_turnon();
 	if(fspic_isinit == 0) flash_init(&flashobj);
+#endif
 ////
 
 	u32 CpuType = ((HAL_READ32(SYSTEM_CTRL_BASE, REG_SYS_CLK_CTRL1) & (0x70)) >> 4);
@@ -776,16 +800,21 @@ SdrCalibration(
 	}	
 #endif	
 
+#if !USE_SRC_ONLY_BOOT
 #ifdef SDRAM_INIT_USE_TCM_HEAP
 	pAvaWds AvaWds = (pAvaWds) tcm_heap_calloc(sizeof(u32)*REC_NUM*2);
 #else
+    _memset((u8*)AvaWds, 0, sizeof(AvaWds));
+#endif
+#else
+    u32  AvaWds[2][REC_NUM];
     _memset((u8*)AvaWds, 0, sizeof(u32)*REC_NUM*2);
 #endif
 
     volatile struct ms_rxi310_portmap *ms_ctrl_0_map;
     ms_ctrl_0_map = (struct ms_rxi310_portmap*) SDR_CTRL_BASE;
-    ms_ctrl_0_map = ms_ctrl_0_map;
-    PassFlag = PassFlag;
+//    ms_ctrl_0_map = ms_ctrl_0_map;
+//    PassFlag = PassFlag;
     RdPipeCounter =0;
 
 //    DBG_8195A("%d\n",__LINE__);
@@ -981,7 +1010,7 @@ SdrCalibration(
     return Result;
 } // SdrCalibration
  
- 
+// HAL_RAM_DATA_SECTION
 /*
  
 HAL_SDRC_TEXT_SECTION 
@@ -1062,7 +1091,7 @@ u8 IsSdrPowerOn(
 
 #else // ifndef CONFIG_SDR_EN
 
-VOID SdrPowerOff(
+HAL_SDRC_TEXT_SECTION VOID SdrPowerOff(
     VOID
 )
 {
@@ -1070,7 +1099,6 @@ VOID SdrPowerOff(
     LDO25M_CTRL(OFF);
     HAL_WRITE32(PERI_ON_BASE, REG_SOC_FUNC_EN, HAL_READ32(PERI_ON_BASE, REG_SOC_FUNC_EN) | BIT(21));
 }
-
 
 
 HAL_SDRC_TEXT_SECTION VOID SdrCtrlInit(VOID)

@@ -1068,7 +1068,7 @@ static void worker_thread_main( void *arg )
 		{
 			message.function(message.buf, message.buf_len, message.flags, message.user_data);
 			if(message.buf){
-				//printf("\n!!!!!Free %p(%d)\n", message.buf, message.buf_len);
+				//printf("\n!Free %p(%d)\n", message.buf, message.buf_len);
 				_rtw_mfree(message.buf, message.buf_len);
 			}
 		}
@@ -1082,12 +1082,12 @@ int rtw_create_worker_thread( rtw_worker_thread_t* worker_thread, u8 priority, u
 
 	memset( worker_thread, 0, sizeof( *worker_thread ) );
 
-	if ( rtw_init_xqueue( &worker_thread->event_queue, "worker queue", sizeof(rtw_event_message_t), event_queue_size ) != SUCCESS )
+	if ( rtw_init_xqueue( &worker_thread->event_queue, "worker", sizeof(rtw_event_message_t), event_queue_size ) != SUCCESS )
 	{
 		return FAIL;
 	}
 
-	if ( !rtw_create_task( &worker_thread->thread, "worker thread", stack_size, priority, worker_thread_main, (void*) worker_thread ) )
+	if ( !rtw_create_task( &worker_thread->thread, "worker", stack_size, priority, worker_thread_main, (void*) worker_thread ) )
 	{
 		rtw_deinit_xqueue( &worker_thread->event_queue );
 		return FAIL;

@@ -44,6 +44,10 @@ typedef signed short int	s16;
 typedef unsigned char		bool;
 
 
+extern u8 txt0123456789ABCDEF[16];
+#define tab0123456789ABCDEF txt0123456789ABCDEF // = "0123456789ABCDEF"
+
+
 #define in_range(c, lo, up)  ((u8)c >= lo && (u8)c <= up)
 #define isprint(c)           in_range(c, 0x20, 0x7f)
 #define isdigit(c)           in_range(c, '0', '9')
@@ -644,7 +648,7 @@ int DiagSnPrintfPatch(char *buf, size_t size, const char *fmt, ...)
 					shift = (hex_count - 1)*4;
 
 				for(; shift >= 0; shift -= 4)
-					*q++ = "0123456789ABCDEF"[(h >> shift) & 0xF] | ncase;
+					*q++ = tab0123456789ABCDEF[(h >> shift) & 0xF] | ncase;
 			}
 			else if(*fmt == 'd') {
 				int i = *dp++;
@@ -711,11 +715,6 @@ Exit:
 	return(s-buf);
 
 }
-
-
-
-
-
 
 /*********************************************************/
 
@@ -830,7 +829,7 @@ static int VSprintfPatch(char *buf, const char *fmt, const int *dp)
 
 				for(; shift >= 0; shift -= 4) {
 
-					*q++ = "0123456789ABCDEF"[(h >> shift) & 0xF] | ncase;
+					*q++ = tab0123456789ABCDEF[(h >> shift) & 0xF] | ncase;
 				}
 
 			}
@@ -899,20 +898,18 @@ static int VSprintfPatch(char *buf, const char *fmt, const int *dp)
 }
 
 
-u32  DiagPrintfPatch(
+int  DiagPrintfPatch(
     IN  const char *fmt, ...
 )
 {
-	(void)VSprintfPatch(0, fmt, ((const int *)&fmt)+1);
-	return 1;
+	return VSprintfPatch(0, fmt, ((const int *)&fmt)+1);
 }
 
-u32  DiagSPrintfPatch(
+int  DiagSPrintfPatch(
     IN  u8 *buf,
     IN  const char *fmt, ...
 )
 {
-	(void)VSprintfPatch((char*)buf, fmt, ((const int *)&fmt)+1);
-	return 1;
+	return VSprintfPatch((char*)buf, fmt, ((const int *)&fmt)+1);
 }
 #endif

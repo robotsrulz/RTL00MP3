@@ -184,7 +184,6 @@ void
 lwip_socket_init(void)
 {
 }
-
 /**
  * Map a externally used socket index to the internal socket representation.
  *
@@ -213,6 +212,14 @@ get_socket(int s)
   return sock;
 }
 
+/*
+ * pvvx: errno
+ */
+int lwip_last_err_socket(int s) {
+	struct lwip_sock * sc = get_socket(s);
+	if(sc) return sc->err;
+	else return EBADF;
+}
 /**
  * Same as get_socket but doesn't set errno
  *
@@ -1011,7 +1018,7 @@ lwip_write(int s, const void *data, size_t size)
  * set in the sets has events. On return, readset, writeset and exceptset have
  * the sockets enabled that had events.
  *
- * exceptset is not used for now!!!
+ * exceptset is not used for now!
  *
  * @param maxfdp1 the highest socket index in the sets
  * @param readset_in:    set of sockets to check for read events

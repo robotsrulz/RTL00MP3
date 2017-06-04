@@ -9,26 +9,22 @@
 
 #include "rtl8195a.h"
 //#include <stdarg.h>
-#include "rtl_consol.h"
+#include "rtl_bios_data.h"
+//#include "rtl_consol.h"
 #include "osdep_api.h"
 #if defined(configUSE_WAKELOCK_PMU) && (configUSE_WAKELOCK_PMU == 1)
 #include "freertos_pmu.h"
 #endif
 #include "tcm_heap.h"
 
-MON_RAM_BSS_SECTION 
-    volatile UART_LOG_CTL    UartLogCtl;
-MON_RAM_BSS_SECTION 
-    volatile UART_LOG_CTL    *pUartLogCtl;
-MON_RAM_BSS_SECTION 
-    u8                       *ArgvArray[MAX_ARGV];
-MON_RAM_BSS_SECTION 
-    UART_LOG_BUF             UartLogBuf;
+//MON_RAM_BSS_SECTION   UART_LOG_CTL    UartLogCtl;
+//MON_RAM_BSS_SECTION   UART_LOG_CTL    *pUartLogCtl;
+//MON_RAM_BSS_SECTION   u8                       *ArgvArray[MAX_ARGV];
+//MON_RAM_BSS_SECTION   UART_LOG_BUF             UartLogBuf;
 
 
 #ifdef CONFIG_UART_LOG_HISTORY
-MON_RAM_BSS_SECTION
-    u8  UartLogHistoryBuf[UART_LOG_HISTORY_LEN][UART_LOG_CMD_BUFLEN];
+//MON_RAM_BSS_SECTION    u8  UartLogHistoryBuf[UART_LOG_HISTORY_LEN][UART_LOG_CMD_BUFLEN];
 #endif
 
 _LONG_CALL_
@@ -234,7 +230,7 @@ RtlConsolInitRam(
         pUartLogCtl->TaskRdy = 0;
 #ifdef PLATFORM_FREERTOS
 #define	LOGUART_STACK_SIZE	200 //USE_MIN_STACK_SIZE modify from 512 to 128
-#if CONFIG_USE_TCM_HEAP
+#if 0 //CONFIG_USE_TCM_HEAP
 	{
 		int ret = 0;
 		void *stack_addr = tcm_heap_malloc(LOGUART_STACK_SIZE*sizeof(int));
@@ -253,13 +249,13 @@ RtlConsolInitRam(
 				NULL);
 		if (pdTRUE != ret)
 		{
-			DiagPrintf("Create Log UART Task Err!!\n");
+			DiagPrintf("Create Log UART Task Err!\n");
 		}
 	}
 #else							 
 	if (pdTRUE != xTaskCreate( RtlConsolTaskRam, (const signed char * const)"log_uart", LOGUART_STACK_SIZE, NULL, tskIDLE_PRIORITY + 5 + PRIORITIE_OFFSET, NULL))
 	{
-		DiagPrintf("Create Log UART Task Err!!\n");
+		DiagPrintf("Create Log UART Task Err!\n");
 	}
 #endif
 
@@ -316,12 +312,15 @@ RtlConsolTaskRam(
 {
 #if SUPPORT_LOG_SERVICE
 	log_service_init();
+#else
+#ifdef CONFIG_AT_USR
+	at_user_init();
+#endif
 #endif
     //4 Set this for UartLog check cmd history
 #ifdef CONFIG_KERNEL
 	pUartLogCtl->TaskRdy = 1;
-#endif
-#ifndef CONFIG_KERNEL   
+#else
     pUartLogCtl->BootRdy = 1;
 #endif
     do{

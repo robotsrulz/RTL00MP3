@@ -268,20 +268,20 @@ typedef	long long __i64;
 
 /* Wireless Identification */
 #define SIOCSIWCOMMIT	0x8B00		/* Commit pending changes to driver */
-#define SIOCGIWNAME		0x8B01		/* get name == wireless protocol */
+#define SIOCGIWNAME	0x8B01		/* get name == wireless protocol */
 /* SIOCGIWNAME is used to verify the presence of Wireless Extensions.
  * Common values : "IEEE 802.11-DS", "IEEE 802.11-FH", "IEEE 802.11b"...
  * Don't put the name of your driver there, it's useless. */
 
 /* Basic operations */
-#define SIOCSIWNWID		0x8B02		/* set network id (pre-802.11) */
-#define SIOCGIWNWID		0x8B03		/* get network id (the cell) */
-#define SIOCSIWFREQ		0x8B04		/* set channel/frequency (Hz) */
-#define SIOCGIWFREQ		0x8B05		/* get channel/frequency (Hz) */
-#define SIOCSIWMODE		0x8B06		/* set operation mode */
-#define SIOCGIWMODE		0x8B07		/* get operation mode */
-#define SIOCSIWSENS		0x8B08		/* set sensitivity (dBm) */
-#define SIOCGIWSENS		0x8B09		/* get sensitivity (dBm) */
+#define SIOCSIWNWID	0x8B02		/* set network id (pre-802.11) */
+#define SIOCGIWNWID	0x8B03		/* get network id (the cell) */
+#define SIOCSIWFREQ	0x8B04		/* set channel/frequency (Hz) */
+#define SIOCGIWFREQ	0x8B05		/* get channel/frequency (Hz) */
+#define SIOCSIWMODE	0x8B06		/* set operation mode */
+#define SIOCGIWMODE	0x8B07		/* get operation mode */
+#define SIOCSIWSENS	0x8B08		/* set sensitivity (dBm) */
+#define SIOCGIWSENS	0x8B09		/* get sensitivity (dBm) */
 
 /* Informative stuff */
 #define SIOCSIWRANGE	0x8B0A		/* Unused */
@@ -348,11 +348,11 @@ typedef	long long __i64;
 #define SIOCGIWGENIE	0x8B31		/* get generic IE */
 
 /* WPA : IEEE 802.11 MLME requests */
-#define SIOCSIWMLME		0x8B16		/* request MLME operation; uses
+#define SIOCSIWMLME	0x8B16		/* request MLME operation; uses
 					 * struct iw_mlme */
 /* WPA : Authentication mode parameters */
-#define SIOCSIWAUTH		0x8B32		/* set authentication mode params */
-#define SIOCGIWAUTH		0x8B33		/* get authentication mode params */
+#define SIOCSIWAUTH	0x8B32		/* set authentication mode params */
+#define SIOCGIWAUTH	0x8B33		/* get authentication mode params */
 
 /* WPA : Extended version of encoding configuration */
 #define SIOCSIWENCODEEXT 0x8B34		/* set encoding token & mode */
@@ -375,8 +375,8 @@ typedef	long long __i64;
  * If you don't follow those rules, DaveM is going to hate you (reason :
  * it make mixed 32/64bit operation impossible).
  */
-#define SIOCIWFIRSTPRIV		0x8BE0
-#define SIOCIWLASTPRIV		0x8BFF
+#define SIOCIWFIRSTPRIV	0x8BE0
+#define SIOCIWLASTPRIV	0x8BFF
 
 #define SIOCSIWPRIVADAPTIVITY	0x8BFB
 #define SIOCGIWPRIVPASSPHRASE	0x8BFC
@@ -412,7 +412,7 @@ typedef	long long __i64;
 #define IWEVTXDROP	0x8C00		/* Packet dropped to excessive retry */
 #define IWEVQUAL	0x8C01		/* Quality part of statistics (scan) */
 #define IWEVCUSTOM	0x8C02		/* Driver specific ascii string */
-#define IWEVREGISTERED	0x8C03	/* Discovered a new node (AP mode) */
+#define IWEVREGISTERED	0x8C03		/* Discovered a new node (AP mode) */
 #define IWEVEXPIRED	0x8C04		/* Expired a node (AP mode) */
 #define IWEVGENIE	0x8C05		/* Generic IE (WPA, RSN, WMM, ..)
 					 * (scan results); This includes id and
@@ -443,7 +443,7 @@ typedef	long long __i64;
 					 * pre-authentication
 					 * (struct iw_pmkid_cand) */
 
-#define IWEVFIRST		0x8C00
+#define IWEVFIRST	0x8C00
 #define IW_EVENT_IDX(cmd)	((cmd) - IWEVFIRST)
 
 /* Indicate Mgnt Frame and Action Frame to uplayer*/
@@ -490,11 +490,11 @@ typedef	long long __i64;
  * a few of them in the struct iw_range. */
 
 /* Maximum of address that you may set with SPY */
-#define IW_MAX_SPY			8
+#define IW_MAX_SPY		8
 
 /* Maximum of address that you may get in the
    list of access points in range */
-#define IW_MAX_AP			64
+#define IW_MAX_AP		64
 
 /* Maximum size of the ESSID and NICKN strings */
 #define IW_ESSID_MAX_SIZE	32
@@ -503,7 +503,7 @@ typedef	long long __i64;
 #define IW_MODE_AUTO	0	/* Let the driver decides */
 #define IW_MODE_ADHOC	1	/* Single cell network */
 #define IW_MODE_INFRA	2	/* Multi cell network, roaming, ... */
-#define IW_MODE_MASTER	3	/* Synchronization master or Access Point */
+#define IW_MODE_MASTER	3	/* Synchronisation master or Access Point */
 #define IW_MODE_REPEAT	4	/* Wireless Repeater (forwarder) */
 #define IW_MODE_SECOND	5	/* Secondary master/repeater (backup) */
 #define IW_MODE_MONITOR	6	/* Passive monitor (listen only) */
@@ -532,32 +532,32 @@ typedef	long long __i64;
 #define IW_ENCODING_TOKEN_MAX	64	/* 512 bits (for now) */
 
 /* Flags for encoding (along with the token) */
-#define IW_ENCODE_INDEX			0x00FF	/* Token index (if needed) */
-#define IW_ENCODE_FLAGS			0xFF00	/* Flags defined below */
-#define IW_ENCODE_MODE			0xF000	/* Modes defined below */
-#define IW_ENCODE_DISABLED		0x8000	/* Encoding disabled */
-#define IW_ENCODE_ENABLED		0x0000	/* Encoding enabled */
+#define IW_ENCODE_INDEX		0x00FF	/* Token index (if needed) */
+#define IW_ENCODE_FLAGS		0xFF00	/* Flags defined below */
+#define IW_ENCODE_MODE		0xF000	/* Modes defined below */
+#define IW_ENCODE_DISABLED	0x8000	/* Encoding disabled */
+#define IW_ENCODE_ENABLED	0x0000	/* Encoding enabled */
 #define IW_ENCODE_RESTRICTED	0x4000	/* Refuse non-encoded packets */
-#define IW_ENCODE_OPEN			0x2000	/* Accept non-encoded packets */
-#define IW_ENCODE_NOKEY			0x0800  /* Key is write only, so not present */
-#define IW_ENCODE_TEMP			0x0400  /* Temporary key */
+#define IW_ENCODE_OPEN		0x2000	/* Accept non-encoded packets */
+#define IW_ENCODE_NOKEY		0x0800  /* Key is write only, so not present */
+#define IW_ENCODE_TEMP		0x0400  /* Temporary key */
 
 /* Power management flags available (along with the value, if any) */
-#define IW_POWER_ON				0x0000	/* No details... */
-#define IW_POWER_TYPE			0xF000	/* Type of parameter */
-#define IW_POWER_PERIOD			0x1000	/* Value is a period/duration of  */
-#define IW_POWER_TIMEOUT		0x2000	/* Value is a timeout (to go asleep) */
-#define IW_POWER_SAVING			0x4000	/* Value is relative (how aggressive)*/
-#define IW_POWER_MODE			0x0F00	/* Power Management mode */
-#define IW_POWER_UNICAST_R		0x0100	/* Receive only unicast messages */
+#define IW_POWER_ON		0x0000	/* No details... */
+#define IW_POWER_TYPE		0xF000	/* Type of parameter */
+#define IW_POWER_PERIOD		0x1000	/* Value is a period/duration of  */
+#define IW_POWER_TIMEOUT	0x2000	/* Value is a timeout (to go asleep) */
+#define IW_POWER_SAVING		0x4000	/* Value is relative (how aggressive)*/
+#define IW_POWER_MODE		0x0F00	/* Power Management mode */
+#define IW_POWER_UNICAST_R	0x0100	/* Receive only unicast messages */
 #define IW_POWER_MULTICAST_R	0x0200	/* Receive only multicast messages */
-#define IW_POWER_ALL_R			0x0300	/* Receive all messages though PM */
-#define IW_POWER_FORCE_S		0x0400	/* Force PM procedure for sending unicast */
-#define IW_POWER_REPEATER		0x0800	/* Repeat broadcast messages in PM period */
-#define IW_POWER_MODIFIER		0x000F	/* Modify a parameter */
-#define IW_POWER_MIN			0x0001	/* Value is a minimum  */
-#define IW_POWER_MAX			0x0002	/* Value is a maximum */
-#define IW_POWER_RELATIVE		0x0004	/* Value is not in seconds/ms/us */
+#define IW_POWER_ALL_R		0x0300	/* Receive all messages though PM */
+#define IW_POWER_FORCE_S	0x0400	/* Force PM procedure for sending unicast */
+#define IW_POWER_REPEATER	0x0800	/* Repeat broadcast messages in PM period */
+#define IW_POWER_MODIFIER	0x000F	/* Modify a parameter */
+#define IW_POWER_MIN		0x0001	/* Value is a minimum  */
+#define IW_POWER_MAX		0x0002	/* Value is a maximum */
+#define IW_POWER_RELATIVE	0x0004	/* Value is not in seconds/ms/us */
 
 /* Transmit Power flags available */
 #define IW_TXPOW_TYPE		0x00FF	/* Type of value */
@@ -589,8 +589,8 @@ typedef	long long __i64;
 #define IW_SCAN_ALL_RATE	0x0040	/* Scan all Bit-Rates */
 #define IW_SCAN_THIS_RATE	0x0080	/* Scan only this Bit-Rate */
 /* struct iw_scan_req scan_type */
-#define IW_SCAN_TYPE_ACTIVE 	0
-#define IW_SCAN_TYPE_PASSIVE 	1
+#define IW_SCAN_TYPE_ACTIVE 0
+#define IW_SCAN_TYPE_PASSIVE 1
 /* Maximum size of returned data */
 #define IW_SCAN_MAX_DATA	4096	/* In bytes */
 
@@ -627,8 +627,8 @@ typedef	long long __i64;
 
 /* IW_AUTH_WPA_VERSION values (bit field) */
 #define IW_AUTH_WPA_VERSION_DISABLED	0x00000001
-#define IW_AUTH_WPA_VERSION_WPA			0x00000002
-#define IW_AUTH_WPA_VERSION_WPA2		0x00000004
+#define IW_AUTH_WPA_VERSION_WPA		0x00000002
+#define IW_AUTH_WPA_VERSION_WPA2	0x00000004
 
 /* IW_AUTH_PAIRWISE_CIPHER and IW_AUTH_GROUP_CIPHER values (bit field) */
 #define IW_AUTH_CIPHER_NONE		0x00000001
@@ -772,7 +772,7 @@ struct	iw_freq
 struct	iw_quality
 {
 	__u8		qual;		/* link quality (%retries, SNR,
-					   %missed beacons or better...) */
+					   		%missed beacons or better...) */
 	__u8		level;		/* signal level (dBm) */
 	__u8		noise;		/* noise level (dBm) */
 	__u8		updated;	/* Flags to know if updated */
@@ -808,7 +808,7 @@ struct	iw_missed
  */
 struct	iw_thrspy
 {
-	struct sockaddr_t	addr;		/* Source address (hw/mac) */
+	struct sockaddr_t		addr;		/* Source address (hw/mac) */
 	struct iw_quality	qual;		/* Quality of the link */
 	struct iw_quality	low;		/* Low threshold */
 	struct iw_quality	high;		/* High threshold */
@@ -988,7 +988,7 @@ union	iwreq_data
 	struct iw_param	txpower;	/* default transmit power */
 	struct iw_param	rts;		/* RTS threshold threshold */
 	struct iw_param	frag;		/* Fragmentation threshold */
-	__u32		mode;		/* Operation mode */
+	__u32			mode;		/* Operation mode */
 	struct iw_param	retry;		/* Retry limits & lifetime */
 
 	struct iw_point	encoding;	/* Encoding stuff : tokens */

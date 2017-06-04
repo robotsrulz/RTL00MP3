@@ -18,16 +18,16 @@
 struct dev_credential {
 	u8 ssid[32]; 			/**< SSID */
 	size_t ssid_len;		/**< Length of SSID */
-	u16 auth_type;		/**< Authentication Type (WPS_AUTH_OPEN, .. flags) */
-	u16 encr_type;		/**< Encryption Type (WPS_ENCR_NONE, .. flags) */
-	u8 key_idx;			/**< Key index */
-	u8 key[65];			/**< Key */
-	size_t key_len;		/**< Key length in octets */
-	u8 mac_addr[6];		/**< MAC address of the Credential receiver */
+	u16 auth_type;			/**< Authentication Type (WPS_AUTH_OPEN, .. flags) */
+	u16 encr_type;			/**< Encryption Type (WPS_ENCR_NONE, .. flags) */
+	u8 key_idx;				/**< Key index */
+	u8 key[65];				/**< Key */
+	size_t key_len;			/**< Key length in octets */
+	u8 mac_addr[6];			/**< MAC address of the Credential receiver */
 	const u8 *cred_attr;	/**< Unparsed Credential attribute data (used only in cred_cb()).
 							This may be NULL, if not used. */
 	size_t cred_attr_len;	/**< Length of cred_attr in octets */
-	u16 ap_channel;		/**< AP channel */
+	u16 ap_channel;			/**< AP channel */
 };
 
 typedef struct {
@@ -303,18 +303,19 @@ static int wps_connect_to_AP_by_certificate(rtw_network_info_t *wifi)
 	printf("ssid_len = %d\n", wifi->ssid.len);
 	printf("password_len = %d\n", wifi->password_len);
 	while (1) {
-		ret = wifi_connect((char*)wifi->ssid.val,
+		ret = wifi_connect(
+						NULL,
+						0,
+						(char*)wifi->ssid.val,
 						 wifi->security_type,
 						 (char*)wifi->password,
-						 wifi->ssid.len,
-						 wifi->password_len,
 						 wifi->key_id,
 						 NULL);
 		if (ret == RTW_SUCCESS) {
 			if(retry_count == RETRY_COUNT)
 				rtw_msleep_os(1000);  //When start wps with OPEN AP, AP will send a disassociate frame after STA connected, need reconnect here.
 			if(RTW_SUCCESS == wifi_is_connected_to_ap( )){
-				//printf("\r\n[WPS]Ready to tranceive!!\n");
+				//printf("\r\n[WPS]Ready to tranceive!\n");
 				wps_check_and_show_connection_info();
 				break;
 			}
@@ -336,11 +337,12 @@ static int wps_connect_to_AP_by_open_system(char *target_ssid)
 	if (target_ssid != NULL) {
 		rtw_msleep_os(500);	//wait scan complete.
 		while (1) {
-			ret = wifi_connect(target_ssid,
+			ret = wifi_connect(
+							 NULL,
+							 0,
+							 target_ssid,
 							 RTW_SECURITY_OPEN,
 							 NULL,
-							 strlen(target_ssid),
-							 0,
 							 0,
 							 NULL);
 			if (ret == RTW_SUCCESS) {
@@ -501,7 +503,7 @@ int wps_start(u16 wps_config, char *pin, u8 channel, char *ssid)
 	wifi_set_wps_phase(ENABLE);
 	ret = wps_connect_to_AP_by_open_system(target_ssid);
 	if(ret < 0){
-		printf("WPS: WPS Fail!!\n");
+		printf("WPS: WPS Fail!\n");
 		goto exit;
 	}
 	os_xqueue_receive(queue_for_credential, &dev_cred, 120);
@@ -511,9 +513,9 @@ int wps_start(u16 wps_config, char *pin, u8 channel, char *ssid)
 		ret = wps_connect_to_AP_by_certificate(&wifi);
 		goto exit1;
 	} else {
-		printf("WPS: WPS FAIL!!!\n");
-//		printf("\n\rWPS: WPS FAIL!!!\n");
-//		printf("\n\rWPS: WPS FAIL!!!\n");
+		printf("WPS: WPS FAIL!\n");
+//		printf("\n\rWPS: WPS FAIL!\n");
+//		printf("\n\rWPS: WPS FAIL!\n");
 		ret = -1;
 	}
 exit:

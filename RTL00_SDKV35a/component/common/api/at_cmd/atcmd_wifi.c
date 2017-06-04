@@ -16,7 +16,7 @@
 #include <wifi/wifi_conf.h>
 #include <wifi/wifi_util.h>
 
-rtw_mode_t wifi_mode = RTW_MODE_STA;
+extern rtw_mode_t wifi_mode; // = RTW_MODE_STA;
 
 #endif
 
@@ -459,7 +459,8 @@ void fATWx(void *arg){
 			ip = LwIP_GetIP(&xnetif[i]);
 			gw = LwIP_GetGW(&xnetif[i]);
 #endif
-			printf("\nWIFI %s Status: Running\n==============================\n",  ifname[i]);
+			printf("\nWIFI %s Status: Running\n",  ifname[i]);
+			printf("==============================\n");
 
 			rltk_wlan_statistic(i);
 
@@ -478,7 +479,8 @@ void fATWx(void *arg){
 			at_printf("%d.%d.%d.%d,", ip[0], ip[1], ip[2], ip[3]);
 			at_printf("%d.%d.%d.%d", gw[0], gw[1], gw[2], gw[3]);
 #endif
-			printf("Interface (%s)\n==============================\n", ifname[i]);
+			printf("\nInterface (%s)\n", ifname[i]);
+			printf("==============================\n");
 			printf("\tMAC => %02x:%02x:%02x:%02x:%02x:%02x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]) ;
 			printf("\tIP  => %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
 			printf("\tGW  => %d.%d.%d.%d\n", gw[0], gw[1], gw[2], gw[3]);
@@ -494,7 +496,8 @@ void fATWx(void *arg){
 				client_info.count = AP_STA_NUM;
 				wifi_get_associated_client_list(&client_info, sizeof(client_info));
 
-				printf("Associated Client List:\n==============================\n");
+				printf("Associated Client List:\n");
+				printf("==============================\n");
 
 				if(client_info.count == 0)
 					printf("Client Num: 0\n", client_info.count);
@@ -507,7 +510,7 @@ void fATWx(void *arg){
 						printf("\tMAC => "MAC_FMT"\n",
 										MAC_ARG(client_info.mac_list[client_number].octet));
 #if CONFIG_EXAMPLE_UART_ATCMD
-						at_printf("CLIENT : %d,"MAC_FMT"\n", client_number + 1, MAC_ARG(client_info.mac_list[client_number].octet));
+						at_printf("CLIENT:%d,"MAC_FMT"\n", client_number + 1, MAC_ARG(client_info.mac_list[client_number].octet));
 #endif
 #if CONFIG_INIC_CMD_RSP
 						if(info){
@@ -530,7 +533,8 @@ void fATWx(void *arg){
         mac = LwIP_GetMAC(&xnetif[i]);
         ip = LwIP_GetIP(&xnetif[i]);
         gw = LwIP_GetGW(&xnetif[i]);
-        printf("Interface ethernet\n==============================\n");
+        printf("\nInterface ethernet\n");
+        printf("==============================\n");
         printf("\tMAC => %02x:%02x:%02x:%02x:%02x:%02x\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]) ;
         printf("\tIP  => %d.%d.%d.%d\n", ip[0], ip[1], ip[2], ip[3]);
         printf("\tGW  => %d.%d.%d.%d\n", gw[0], gw[1], gw[2], gw[3]);
@@ -542,9 +546,14 @@ void fATWx(void *arg){
 
 #if defined(configUSE_TRACE_FACILITY) && (configUSE_TRACE_FACILITY == 1) && (configUSE_STATS_FORMATTING_FUNCTIONS == 1)
 	{
-		signed char pcWriteBuffer[1024];
-		vTaskList((char*)pcWriteBuffer);
-		printf("Task List:\n%s\n", pcWriteBuffer);
+		char * pcWriteBuffer = malloc(1024);
+		if(pcWriteBuffer) {
+			vTaskList((char*)pcWriteBuffer);
+			printf("\nTask List:\n");
+	        printf("==============================\n");
+	        printf("Name\t  Status Priority HighWaterMark TaskNumber\n%s\n", pcWriteBuffer);
+			free(pcWriteBuffer);
+		}
 	}
 #endif
 
@@ -939,13 +948,16 @@ void fATWC(void *arg){
 
 	if(assoc_by_bssid){
 		printf("Joining BSS by BSSID "MAC_FMT" ...\n", MAC_ARG(wifi.bssid.octet));
-		ret = wifi_connect_bssid(wifi.bssid.octet, (char*)wifi.ssid.val, wifi.security_type, (char*)wifi.password, 
-						ETH_ALEN, wifi.ssid.len, wifi.password_len, wifi.key_id, NULL);		
 	} else {
 		printf("Joining BSS by SSID %s...\n", (char*)wifi.ssid.val);
-		ret = wifi_connect((char*)wifi.ssid.val, wifi.security_type, (char*)wifi.password, wifi.ssid.len,
-						wifi.password_len, wifi.key_id, NULL);
 	}
+	ret = wifi_connect(wifi.bssid.octet, 
+					assoc_by_bssid, 
+					(char*)wifi.ssid.val, 
+					wifi.security_type, 
+					(char*)wifi.password, 
+					 wifi.key_id, 
+					 NULL);		
 	
 	if(ret!= RTW_SUCCESS){
 		printf("ERROR: Can't connect to AP\n");
@@ -1643,19 +1655,10 @@ void fATPA(void *arg)
 		goto exit;
 	}
 
-	if(hidden_ssid){
-		if(wifi_start_ap_with_hidden_ssid((char*)ap.ssid.val, ap.security_type, (char*)ap.password, ap.ssid.len, ap.password_len, ap.channel) < 0) {
+	if(wifi_start_ap((char*)ap.ssid.val, ap.security_type, (char*)ap.password, ap.channel, hidden_ssid) < 0) {
 			//at_printf("\r\n[ATPA] ERROR : Start AP failed");
 			error_no = 4;
 			goto exit;
-		}
-	}
-	else{
-		if(wifi_start_ap((char*)ap.ssid.val, ap.security_type, (char*)ap.password, ap.ssid.len, ap.password_len, ap.channel) < 0) {
-			//at_printf("\r\n[ATPA] ERROR : Start AP failed");
-			error_no = 4;
-			goto exit;
-		}
 	}
 
 	while(1) {
@@ -1897,13 +1900,14 @@ void fATPN(void *arg)
 		wifi_set_pscan_chan(&connect_channel, &pscan_config, 1);
 #endif
 
-	if(assoc_by_bssid){
-		ret = wifi_connect_bssid(wifi.bssid.octet, (char*)wifi.ssid.val, wifi.security_type, (char*)wifi.password,
-						ETH_ALEN, wifi.ssid.len, wifi.password_len, wifi.key_id, NULL);
-	} else {
-		ret = wifi_connect((char*)wifi.ssid.val, wifi.security_type, (char*)wifi.password, wifi.ssid.len,
-						wifi.password_len, wifi.key_id, NULL);
-	}
+	ret = wifi_connect(
+					wifi.bssid.octet, 
+					assoc_by_bssid,
+					(char*)wifi.ssid.val,
+					wifi.security_type,
+					(char*)wifi.password,
+					wifi.key_id, 
+					NULL);
 
 	if(ret!= RTW_SUCCESS){
 		//at_printf("\r\n[ATPN] ERROR: Can't connect to AP");
@@ -2103,7 +2107,7 @@ void fATPF(void *arg)
 		goto exit;
 	}
 
-	dhcps_set_addr_pool(1,&start_ip,&end_ip);
+	dhcps_set_addr_pool(&start_ip,&end_ip);
 
 	if(argv[3] != NULL){
 		ip_addr = inet_addr(argv[3]);
@@ -2132,7 +2136,7 @@ exit:
 	if(error_no==0)
 		at_printf("\r\n[ATPF] OK");
 	else
-		at_printf("\r\n[ATPF] ERROR:%d",error_no);
+		at_printf("\r\n[ATPF] ERROR:%d", error_no);
 
 	return;
 }
@@ -2336,8 +2340,14 @@ int atcmd_wifi_restore_from_flash(void)
 					break;
 			}
 
-			ret = wifi_connect((char*)wifi.ssid.val, wifi.security_type, (char*)wifi.password, wifi.ssid.len,
-				wifi.password_len, wifi.key_id, NULL);
+			ret = wifi_connect(
+				NULL,
+				0,
+				(char*)wifi.ssid.val, 
+				wifi.security_type, 
+				(char*)wifi.password, 
+				wifi.key_id, 
+				NULL);
 			if(ret == RTW_SUCCESS){
 				LwIP_DHCP(0, DHCP_START);
 				ret = 0;

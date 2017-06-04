@@ -7,7 +7,6 @@ set $rtl8710_flasher_auto_erase = 1
 set $rtl8710_flasher_auto_verify = 1
 set $rtl8710_flasher_firmware_ptr = 0x10001000
 set $rtl8710_flasher_buffer = 0x10008000
-#262144
 set $rtl8710_flasher_buffer_size = 421888
 set $rtl8710_flasher_sector_size = 4096
 set $rtl8710_flasher_auto_erase_sector = 0xFFFFFFFF
@@ -107,9 +106,9 @@ while $offset < $size
  end
  set $flash_offset = $arg1 + $offset
  printf "write offset 0x%08x\n", $flash_offset
- set $parms1 = $rtl8710_flasher_buffer + 0x20 - $offset - $arg1
- set $parms2 = $offset + $arg1
- set $parms3 = $offset + $len + $arg1
+ set $parms1 = $rtl8710_flasher_buffer + 0x20 - $flash_offset
+ set $parms2 = $flash_offset
+ set $parms3 = $flash_offset + $len
  restore $arg0 binary $parms1 $parms2 $parms3
  if $rtl8710_flasher_auto_erase != 0
   set $count_i = $flash_offset

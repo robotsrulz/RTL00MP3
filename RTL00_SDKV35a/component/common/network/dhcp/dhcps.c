@@ -1,4 +1,5 @@
 
+#include "dhcp.h"
 #include "dhcps.h"
 #include "tcpip.h"
 
@@ -19,19 +20,19 @@ static struct ip_addr dhcps_local_gateway;
 static struct ip_addr dhcps_network_id;
 static struct ip_addr dhcps_subnet_broadcast; 
 static struct ip_addr dhcps_allocated_client_address;
-static int dhcps_addr_pool_set = 0;
-static struct ip_addr dhcps_addr_pool_start;
-static struct ip_addr dhcps_addr_pool_end;
+uint8_t dhcps_ip4addr_pool_start, dhcps_ip4addr_pool_end;
 #if 0
 static struct ip_addr dhcps_owned_first_ip;
 static struct ip_addr dhcps_owned_last_ip;
 static uint8_t dhcps_num_of_available_ips;
 #endif
-static struct dhcp_msg *dhcp_message_repository;
+static struct dhcps_msg *dhcp_message_repository;
 static int dhcp_message_total_options_lenth;
 
 /* allocated IP range */  
 static struct table  ip_table;
+#define check_bit_ip_in_table(a) (ip_table.ip_range[(uint8_t)a >> 5] & (1 << ((uint8_t)a & ((1 << 5) - 1))))
+#define set_bit_ip_in_table(a) (ip_table.ip_range[(uint8_t)a >> 5] |= (1 << ((uint8_t)a & ((1 << 5) - 1))))
 static struct ip_addr client_request_ip;
 
 static uint8_t dhcp_client_ethernet_address[16];
@@ -48,89 +49,24 @@ static struct netif * dhcps_netif = NULL;
 #if (!IS_USE_FIXED_IP)
 static void mark_ip_in_table(uint8_t d)
 {
-#if (debug_dhcps)   
-  	printf(" mark ip %d",d);
-#endif	
 	xSemaphoreTake(dhcps_ip_table_semaphore, portMAX_DELAY);
-	if (0 < d && d <= 32) {
-		ip_table.ip_range[0] = MARK_RANGE1_IP_BIT(ip_table, d);	
-#if (debug_dhcps)		
-		printf(" ip_table.ip_range[0] = 0x%x",ip_table.ip_range[0]);
-#endif	
-	} else if (32 < d && d <= 64) {
-	  	ip_table.ip_range[1] = MARK_RANGE2_IP_BIT(ip_table, (d - 32));
-#if (debug_dhcps)	
-		printf(" ip_table.ip_range[1] = 0x%x",ip_table.ip_range[1]);
-#endif	
-	} else if (64 < d && d <= 96) {
-		ip_table.ip_range[2] = MARK_RANGE3_IP_BIT(ip_table, (d - 64));
-#if (debug_dhcps)	
-		printf(" ip_table.ip_range[2] = 0x%x",ip_table.ip_range[2]);
-#endif	
-	} else if (96 < d && d <= 128) {
-		ip_table.ip_range[3] = MARK_RANGE4_IP_BIT(ip_table, (d - 96));
-#if (debug_dhcps)	
-		printf(" ip_table.ip_range[3] = 0x%x",ip_table.ip_range[3]);
-#endif	
-	} else {
-#if (DHCPS_IP_RANGE_FROM_1_to_255)
-	if (128 < d && d <= 160) {
-		ip_table.ip_range[4] = MARK_RANGE5_IP_BIT(ip_table, d);	
-#if (debug_dhcps)		
-		printf(" ip_table.ip_range[4] = 0x%x",ip_table.ip_range[4]);
-#endif	
-	} else if (160 < d && d <= 192) {
-		ip_table.ip_range[5] = MARK_RANGE6_IP_BIT(ip_table, (d - 160));
-#if (debug_dhcps)	
-		printf(" ip_table.ip_range[5] = 0x%x",ip_table.ip_range[5]);
-#endif	
-	} else if (192 < d && d <= 224) {
-		ip_table.ip_range[6] = MARK_RANGE7_IP_BIT(ip_table, (d - 192));
-#if (debug_dhcps)	
-		printf(" ip_table.ip_range[6] = 0x%x",ip_table.ip_range[6]);
-#endif	
-	} else if (224 < d) {
-		ip_table.ip_range[7] = MARK_RANGE8_IP_BIT(ip_table, (d - 224));
-#if (debug_dhcps)	
-		printf(" ip_table.ip_range[7] = 0x%x",ip_table.ip_range[7]);
-#endif	
-	}
-#else 
-		printf(" Request ip over the range(1-128) ");
-#endif
-	}
+	set_bit_ip_in_table(d);
 	xSemaphoreGive(dhcps_ip_table_semaphore);
-	
 }
-#endif
 
 /**
   * @brief  get one usable ip from the ip table of dhcp server. 
   * @param: None 
   * @retval the usable index which represent the ip4_addr(ip) of allocated ip addr.
   */
-#if (!IS_USE_FIXED_IP)
 static uint8_t search_next_ip(void)
 {       
-	uint8_t range_count, offset_count;
-	uint8_t start, end;
-	uint8_t max_count;
-	if(dhcps_addr_pool_set){
-		start = (uint8_t)ip4_addr4(&dhcps_addr_pool_start);
-		end = (uint8_t)ip4_addr4(&dhcps_addr_pool_end);
-	}else{
-		start = 0;
-		end = 255;
-	}
+	uint8_t count;
 	xSemaphoreTake(dhcps_ip_table_semaphore, portMAX_DELAY);
-	for (range_count = 0; range_count < (max_count = (DHCPS_IP_RANGE_FROM_1_to_255 > 0 ? 8 : 4)); range_count++) {
-		for (offset_count = 0;offset_count < 32; offset_count++) {
-			if ((((ip_table.ip_range[range_count] >> offset_count) & 0x01) == 0) 
-				&&(((range_count * 32) + (offset_count + 1)) >= start)
-				&&(((range_count * 32) + (offset_count + 1)) <= end)) {
-				xSemaphoreGive(dhcps_ip_table_semaphore); 
-				return ((range_count * 32) + (offset_count + 1));
-			}
+	for(count = dhcps_ip4addr_pool_start; count <= dhcps_ip4addr_pool_end; count++) {
+		if(check_bit_ip_in_table(count) == 0) {
+			xSemaphoreGive(dhcps_ip_table_semaphore);
+			return count;
 		}
 	}
 	xSemaphoreGive(dhcps_ip_table_semaphore); 
@@ -227,13 +163,25 @@ static void add_offer_options(uint8_t *option_start_address)
 	This option specifies the Maximum transmission unit to use */
 	temp_option_addr = fill_one_option_content(temp_option_addr,
 		DHCP_OPTION_CODE_INTERFACE_MTU, DHCP_OPTION_LENGTH_TWO,
-					(void *) &dhcp_option_interface_mtu_576);
+					(void *) &dhcp_option_interface_mtu);
 	/* add DHCP options 31.
 	This option specifies whether or not the client should solicit routers */
 	temp_option_addr = fill_one_option_content(temp_option_addr,
 		DHCP_OPTION_CODE_PERFORM_ROUTER_DISCOVERY, DHCP_OPTION_LENGTH_ONE,
 								NULL);
-	*temp_option_addr++ = DHCP_OPTION_CODE_END;
+#if LWIP_NETIF_HOSTNAME
+	/* add DHCP options 12 HostName */
+    const char *p = dhcps_netif->hostname;
+    uint8_t len;
+    if(p && (len = strlen(p)) != 0) {
+    	*temp_option_addr++ = DHCP_OPTION_HOSTNAME;
+    	*temp_option_addr++ = len;
+    	while(len--) {
+        	*temp_option_addr++ = *p++;
+    	}
+    }
+#endif
+	*temp_option_addr = DHCP_OPTION_CODE_END;
 
 }
 
@@ -243,7 +191,7 @@ static void add_offer_options(uint8_t *option_start_address)
   * @param  m the pointer which point to the dhcp message store in.
   * @retval None.
   */
-static void dhcps_initialize_message(struct dhcp_msg *dhcp_message_repository, struct ip_addr yiaddr)
+static void dhcps_initialize_message(struct dhcps_msg *dhcp_message_repository, struct ip_addr yiaddr)
 {
      
         dhcp_message_repository->op = DHCP_MESSAGE_OP_REPLY;
@@ -255,11 +203,11 @@ static void dhcps_initialize_message(struct dhcp_msg *dhcp_message_repository, s
         dhcp_message_repository->secs = 0;
         dhcp_message_repository->flags = htons(BOOTP_BROADCAST);         
 
-	memcpy((char *)dhcp_message_repository->yiaddr,
+        memcpy((char *)dhcp_message_repository->yiaddr,
 			(char *)&yiaddr,
 				sizeof(dhcp_message_repository->yiaddr));
         
-	memset((char *)dhcp_message_repository->ciaddr, 0,
+		memset((char *)dhcp_message_repository->ciaddr, 0,
 					sizeof(dhcp_message_repository->ciaddr));
         memset((char *)dhcp_message_repository->siaddr, 0,
 					sizeof(dhcp_message_repository->siaddr));
@@ -285,7 +233,7 @@ static void dhcps_initialize_message(struct dhcp_msg *dhcp_message_repository, s
 static void dhcps_send_offer(struct pbuf *packet_buffer)
 {
 	uint8_t temp_ip = 0;
-	dhcp_message_repository = (struct dhcp_msg *)packet_buffer->payload;	
+	dhcp_message_repository = (struct dhcps_msg *)packet_buffer->payload;
 #if (!IS_USE_FIXED_IP)
 	if ((ip4_addr4(&dhcps_allocated_client_address) != 0) &&
 		(memcmp((void *)&dhcps_allocated_client_address, (void *)&client_request_ip, 4) == 0) &&
@@ -295,8 +243,8 @@ static void dhcps_send_offer(struct pbuf *packet_buffer)
 		(ip4_addr2(&client_request_ip) == ip4_addr2(&dhcps_network_id)) &&
 		(ip4_addr3(&client_request_ip) == ip4_addr3(&dhcps_network_id))) {
 		uint8_t request_ip4 = (uint8_t) ip4_addr4(&client_request_ip);
-		if ((request_ip4 != 0) && (((request_ip4 - 1) / 32) >= 0) && (((request_ip4 - 1) / 32) <= 3) &&
-			(((ip_table.ip_range[(request_ip4 - 1) / 32] >> ((request_ip4 - 1) % 32)) & 0x01) == 0)) {
+		if ((request_ip4 != 0)
+					&& check_bit_ip_in_table(request_ip4) == 0) {
 			temp_ip = request_ip4;
 		}
 	}
@@ -310,19 +258,19 @@ static void dhcps_send_offer(struct pbuf *packet_buffer)
 #if 0	
 	  	memset(&ip_table, 0, sizeof(struct table));
 		mark_ip_in_table((uint8_t)ip4_addr4(&dhcps_local_address));
-		printf("reset ip table!!");	
+		printf("reset ip table!");	
 #endif	
-		printf("No useable ip!!!!");
+		printf("No useable ip!");
 	}
 	
 	IP4_ADDR(&dhcps_allocated_client_address, (ip4_addr1(&dhcps_network_id)),
 		ip4_addr2(&dhcps_network_id), ip4_addr3(&dhcps_network_id), temp_ip);
 	memcpy(bound_client_ethernet_address, dhcp_client_ethernet_address, sizeof(bound_client_ethernet_address));
-#endif   
-        dhcps_initialize_message(dhcp_message_repository, dhcps_allocated_client_address);
-        add_offer_options(add_msg_type(&dhcp_message_repository->options[4],
+#endif
+	dhcps_initialize_message(dhcp_message_repository, dhcps_allocated_client_address);
+	add_offer_options(add_msg_type(&dhcp_message_repository->options[4],
 						DHCP_MESSAGE_TYPE_OFFER));
-        udp_sendto_if(dhcps_pcb, packet_buffer,
+	udp_sendto_if(dhcps_pcb, packet_buffer,
 		   &dhcps_send_broadcast_address, DHCP_CLIENT_PORT, dhcps_netif);
 }
 
@@ -336,7 +284,7 @@ static void dhcps_send_nak(struct pbuf *packet_buffer)
 	struct ip_addr zero_address;
 	IP4_ADDR(&zero_address, 0, 0, 0, 0);
 
-	dhcp_message_repository = (struct dhcp_msg *)packet_buffer->payload;
+	dhcp_message_repository = (struct dhcps_msg *)packet_buffer->payload;
         dhcps_initialize_message(dhcp_message_repository, zero_address);
         add_msg_type(&dhcp_message_repository->options[4], DHCP_MESSAGE_TYPE_NAK);
         udp_sendto_if(dhcps_pcb, packet_buffer,
@@ -350,7 +298,7 @@ static void dhcps_send_nak(struct pbuf *packet_buffer)
   */
 static void dhcps_send_ack(struct pbuf *packet_buffer)
 {
-        dhcp_message_repository = (struct dhcp_msg *)packet_buffer->payload;
+        dhcp_message_repository = (struct dhcps_msg *)packet_buffer->payload;
         dhcps_initialize_message(dhcp_message_repository, dhcps_allocated_client_address);
         add_offer_options(add_msg_type(&dhcp_message_repository->options[4],
 				      			DHCP_MESSAGE_TYPE_ACK));
@@ -396,8 +344,8 @@ uint8_t dhcps_handle_state_machine_change(uint8_t option_message_type)
 				(ip4_addr2(&client_request_ip) == ip4_addr2(&dhcps_network_id)) &&
 				(ip4_addr3(&client_request_ip) == ip4_addr3(&dhcps_network_id))) {
 				uint8_t request_ip4 = (uint8_t) ip4_addr4(&client_request_ip);
-				if ((request_ip4 != 0) && (((request_ip4 - 1) / 32) >= 0) && (((request_ip4 - 1) / 32) <= 3) &&
-					(((ip_table.ip_range[(request_ip4 - 1) / 32] >> ((request_ip4 - 1) % 32)) & 0x01) == 0)) {
+				if ((request_ip4 != 0)
+					&& check_bit_ip_in_table(request_ip4) == 0) {
 					IP4_ADDR(&dhcps_allocated_client_address, (ip4_addr1(&dhcps_network_id)),
 						ip4_addr2(&dhcps_network_id), ip4_addr3(&dhcps_network_id), request_ip4);
 					memcpy(bound_client_ethernet_address, dhcp_client_ethernet_address, sizeof(bound_client_ethernet_address));
@@ -472,7 +420,7 @@ static uint8_t dhcps_handle_msg_options(uint8_t *option_start, int16_t total_opt
 static uint8_t dhcps_check_msg_and_handle_options(struct pbuf *packet_buffer)
 {
 	int dhcp_message_option_offset;
-	dhcp_message_repository = (struct dhcp_msg *)packet_buffer->payload;
+	dhcp_message_repository = (struct dhcps_msg *)packet_buffer->payload;
 	memcpy(dhcp_client_ethernet_address, dhcp_message_repository->chaddr, sizeof(dhcp_client_ethernet_address));
 	dhcp_message_option_offset = ((int)dhcp_message_repository->options 
 						- (int)packet_buffer->payload);
@@ -500,9 +448,9 @@ struct pbuf *udp_packet_buffer, struct ip_addr *sender_addr, uint16_t sender_por
   	int16_t total_length_of_packet_buffer;
 	struct pbuf *merged_packet_buffer = NULL;
 	
-	dhcp_message_repository = (struct dhcp_msg *)udp_packet_buffer->payload;
+	dhcp_message_repository = (struct dhcps_msg *)udp_packet_buffer->payload;
 	if (udp_packet_buffer == NULL) {
-		printf("Error!!!! System doesn't allocate any buffer\n");
+		printf("Error! System doesn't allocate any buffer\n");
 		return;  
 	}
 	if (sender_port == DHCP_CLIENT_PORT) {
@@ -534,7 +482,7 @@ struct pbuf *udp_packet_buffer, struct ip_addr *sender_addr, uint16_t sender_por
 		case DHCP_OPTION_CODE_END:
 			break;
 		}
-        }
+    }
 	
 	/* free the UDP connection, so we can accept new clients */
         udp_disconnect(udp_pcb);
@@ -548,18 +496,10 @@ struct pbuf *udp_packet_buffer, struct ip_addr *sender_addr, uint16_t sender_por
 
 void dhcps_set_addr_pool(int addr_pool_set, struct ip_addr * addr_pool_start, struct ip_addr *addr_pool_end)
 {
-	if(addr_pool_set){
-		dhcps_addr_pool_set = 1;
-
-		memcpy(&dhcps_addr_pool_start, addr_pool_start,
-							sizeof(struct ip_addr));
-
-		memcpy(&dhcps_addr_pool_end, addr_pool_end,
-							sizeof(struct ip_addr));
-	}else{
-		dhcps_addr_pool_set = 0;
-	}
+	dhcps_ip4addr_pool_start = ip4_addr4(addr_pool_start);
+	dhcps_ip4addr_pool_end = ip4_addr4(addr_pool_end);
 }
+
 /** 
   * @brief  Initialize dhcp server.
   * @param  None.
@@ -570,30 +510,29 @@ void dhcps_set_addr_pool(int addr_pool_set, struct ip_addr * addr_pool_start, st
 void dhcps_init(struct netif * pnetif)
 {	
 //	printf("dhcps_init,wlan:%c\n\r",pnetif->name[1]);
-
 	dhcps_netif = pnetif;
-
-	if (dhcps_pcb != NULL) {
-		udp_remove(dhcps_pcb);
-		dhcps_pcb = NULL;	
-	}
-
-        dhcps_pcb = udp_new(); 
+	dhcps_deinit();
+    dhcps_pcb = udp_new();
 	if (dhcps_pcb == NULL) {
-		printf("Error!!!upd_new error\n");
+		printf("Error! upd_new error\n");
 		return;
 	}
-        IP4_ADDR(&dhcps_send_broadcast_address, 255, 255, 255, 255);
-	/* get net info from net interface */
+    IP4_ADDR(&dhcps_send_broadcast_address, 255, 255, 255, 255);
+
+	memset(&ip_table, 0, sizeof(struct table));
+	if((dhcps_ip4addr_pool_end | dhcps_ip4addr_pool_start)  == 0) {
+		dhcps_ip4addr_pool_start = 2;
+		dhcps_ip4addr_pool_end = 255;
+	}
+
+    /* get net info from net interface */
 	
-        memcpy(&dhcps_local_address, &pnetif->ip_addr,
-        						sizeof(struct ip_addr));
+    memcpy(&dhcps_local_address, &pnetif->ip_addr,
+       						sizeof(struct ip_addr));
 	memcpy(&dhcps_local_mask, &pnetif->netmask,
 							sizeof(struct ip_addr));
-
 	memcpy(&dhcps_local_gateway, &pnetif->gw,
 							sizeof(struct ip_addr));
-
 	/* calculate the usable network ip range */
 	dhcps_network_id.addr = ((pnetif->ip_addr.addr) &
 					(pnetif->netmask.addr));
@@ -612,14 +551,8 @@ void dhcps_init(struct netif * pnetif)
 		, ip4_addr2(&dhcps_local_address), ip4_addr3(&dhcps_local_address),
 					(ip4_addr4(&dhcps_local_address)) + 1 );
 #else
-	if (dhcps_ip_table_semaphore != NULL) {	
-		vSemaphoreDelete(dhcps_ip_table_semaphore);
-		dhcps_ip_table_semaphore = NULL;
-	}
 	dhcps_ip_table_semaphore = xSemaphoreCreateMutex();
 
-	//dhcps_ip_table = (struct ip_table *)(pvPortMalloc(sizeof(struct ip_table)));
-	memset(&ip_table, 0, sizeof(struct table));
 	memset(&dhcps_allocated_client_address, 0, sizeof(struct ip_addr));
 	memset(bound_client_ethernet_address, 0, sizeof(bound_client_ethernet_address));
 	mark_ip_in_table((uint8_t)ip4_addr4(&dhcps_local_address));
@@ -630,8 +563,8 @@ void dhcps_init(struct netif * pnetif)
 	}
 #endif	
 #endif
-        udp_bind(dhcps_pcb, IP_ADDR_ANY, DHCP_SERVER_PORT);
-        udp_recv(dhcps_pcb, dhcps_receive_udp_packet_handler, NULL);
+    udp_bind(dhcps_pcb, IP_ADDR_ANY, DHCP_SERVER_PORT);
+    udp_recv(dhcps_pcb, dhcps_receive_udp_packet_handler, NULL);
 }
 
 void dhcps_deinit(void)

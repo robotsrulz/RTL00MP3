@@ -544,7 +544,7 @@ static int _freertos_create_task(struct task_struct *ptask, const char *name,
 
 	priority += tskIDLE_PRIORITY + PRIORITIE_OFFSET;
 
-#if CONFIG_USE_TCM_HEAP
+#if 0 // CONFIG_USE_TCM_HEAP
 	void *stack_addr = tcm_heap_malloc(stack_size*sizeof(int));
 	//void *stack_addr = rtw_malloc(stack_size*sizeof(int));
 	if(stack_addr == NULL){
@@ -622,12 +622,14 @@ _timerHandle _freertos_timerCreate( const signed char *pcTimerName,
 	if(xTimerPeriodInTicks == TIMER_MAX_DELAY) {
 		xTimerPeriodInTicks = portMAX_DELAY;
 	}
+//	printf("xTimerCreate: %s, %u, %u, %p\n", pcTimerName, xTimerPeriodInTicks, uxAutoReload, pxCallbackFunction);
 	return xTimerCreate((const char *)pcTimerName, xTimerPeriodInTicks, uxAutoReload, pvTimerID, pxCallbackFunction);	
 }
 
 u32 _freertos_timerDelete( _timerHandle xTimer, 
 							   osdepTickType xBlockTime )
 {
+//	printf("xTimerDelete: %p\n", xTimer);
 	return (u32)xTimerDelete(xTimer, xBlockTime);	
 }
 

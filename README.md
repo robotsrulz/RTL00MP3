@@ -1,4 +1,4 @@
-# RTL00(RTL8710AF) Test MP3 AmebaV3.5a GCC
+# RTL00(RTL8710AF) Test MP3 SDK V3.5.2 GCC
 ---
 
 MP3 stereo player V0004<br>
@@ -12,26 +12,32 @@ RTL00 module (RTL8710AF)<br>
 
 ![SCH](https://github.com/pvvx/RTL00MP3/blob/master/RTL00_MP3_SCH.gif)
 
-Толко Тест!<br>
+Только Тест!<br>
 
 PWM Out GC_2 and PE_2 (2 канала по 96Bit на один исходный sample 48 кГц)<br>
 
 Console command (RX/TX GB1/GB0 38400 baud):<br>
-
-ATW0=SSID - задать имя AP<br>
-ATW1=PASSPHRASE - задать пароль AP<br>
-ATWC - Connect to an AES AP<br>
-ATWD - DisConnect AP<br>
-ATWS=URL,PORT - задать канал web-radio или http файл<br> 
-. Sample: ATWS=icecast.omroep.nl/3fm-sb-mp3,80<br>
-. ATWS=meuk.spritesserver.nl/Ii.Romanzeandante.mp3,80<br>
-. ATWS=?, ATWS=close, ATWS=save, ATWS=read<br>
-. ATWS=x,0 и ATWS=save - отключить старт<br>
-ATST - Mem/Task Info<br>
-ATOF - Отключить MP3<br>
-
-ATSD=hexaddr,count - Damp памяти/регистров с адреса...<br>
-ATWD=hexaddr,hexdata - Записать dword по адресу<br>
+```
+CONSOLE COMMAND SET:<br>
+==============================
+ATPN=<SSID>[,<PASSPHRASE>[,WEPKEY]]: WIFI Connect to AP
+ATWS=<URL,PORT>: MP3 Connect to URL
+ATWS=<c>[lose]: Close MP3
+ATWS=<r>[ead]: Read MP3 URL
+ATWS=<s>[ave]: Save MP3 URL
+ATWS=<?>: URL Info
+ATWD: WIFI Disconnect
+ATST: Memory info
+ATLW: Lwip Info
+ATSB=<ADDRES(hex)>[,COUNT(dec)]: Dump byte register
+ATSD=<ADDRES(hex)>[,COUNT(dec)]: Dump dword register
+ATSW=<ADDRES(hex)>,<DATA(hex)>: Set register
+ATDS=[TIME(ms)]: Deep sleep
+ATON: Open connections
+ATOF: Close connections
+?: This Help
+==============================
+```
 
 
 По умолчанию, в качестве JTAG используется J-Link STLink V2.<br>
@@ -43,7 +49,8 @@ JTAG/SWD Drivers:<br>
 * [SEEGER J-Link Software and Documentation Pack](https://www.segger.com/downloads/jlink)<br>
 * [Converting ST-LINK on-board into a J-Link](https://www.segger.com/jlink-st-link.html)<br>
 System:<br>
-* [MinGW](https://sourceforge.net/projects/mingw-w64/)<br>
+* [MinGW64](https://sourceforge.net/projects/mingw-w64/)<br>
+* [Minimalist GNU for Windows](http://www.mingw.org/wiki/msys)<br>
 * [GNU ARM Embedded Toolchain](https://launchpad.net/gcc-arm-embedded/+download)<br>
 * [OpenOCD: Open On-Chip Debugger](https://sourceforge.net/projects/gnuarmeclipse/files/OpenOCD/)<br>
 Eclipse:<br>

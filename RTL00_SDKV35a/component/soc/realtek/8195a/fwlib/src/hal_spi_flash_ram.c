@@ -8,12 +8,11 @@
  */
 #include "rtl8195a.h"
 #include "hal_spi_flash.h"
-
-
 #include "rtl8195a_spi_flash.h"
 
+//#pragma arm section code = ".hal.flash.text", rodata = ".hal.flash.rodata", rwdata = ".hal.flash.data", zidata = ".hal.flash.bss"
 
-#define SPI_CTRL_BASE 0x1FFEF000
+//#define SPI_CTRL_BASE 0x1FFEF000
 #define SPI_DLY_CTRL_ADDR 0x40000300	// [7:0]
 #define MIN_BAUDRATE  0x01
 #define MAX_BAUDRATE  0x04
@@ -87,11 +86,11 @@ SECTION SPIC_INIT_PARA SpicInitParaAllClk[CPU_CLK_TYPE_NO] =    {{0,0,0,0},
                                                          {0,0,0,0},
                                                          {0,0,0,0},};
 #else
-HAL_FLASH_DATA_SECTION 
-SPIC_INIT_PARA SpicInitParaAllClk[SpicMaxMode][CPU_CLK_TYPE_NO];
+extern // HAL_FLASH_DATA_SECTION
+SPIC_INIT_PARA SpicInitParaAllClk[SpicMaxMode][CPU_CLK_TYPE_NO]; // in rtl_bios_data.c
 #endif
 
-extern SPIC_INIT_PARA SpicInitCPUCLK[4];
+//extern SPIC_INIT_PARA SpicInitCPUCLK[4];
 
 /* Send Flash Instruction with Data Phase */
 HAL_FLASH_TEXT_SECTION
@@ -112,7 +111,7 @@ SpicTxCmdWithDataRtl8195A
     HAL_SPI_WRITE32(REG_SPIC_SSIENR, 0);
 
     if (DataPhaseLen > 15) {
-        DBG_SPIF_WARN("SpicTxInstRtl8195A: Data Phase Leng too Big(%d)\n",DataPhaseLen);
+        DBG_SPIF_WARN("%s: Data Phase Leng too Big(%d)\n", __func__, DataPhaseLen);
         DataPhaseLen = 15;
     }
     
@@ -368,7 +367,7 @@ SpicFlashInitRtl8195A(
             #endif
             break;
         default:
-            DBG_8195A("No Support SPI Mode!!!!!!!!\n");
+            DBG_8195A("No Support SPI Mode!\n");
             break;
             
     }
@@ -633,7 +632,6 @@ SpicReadIDRtl8195A(
     }
     /* Disable SPI_FLASH User Mode */
     HAL_SPI_WRITE32(REG_SPIC_SSIENR, 0);        
-
 }
 
 HAL_FLASH_TEXT_SECTION
@@ -645,7 +643,7 @@ SpicCalibrationRtl8195A
 ) 
 {
 
-    u32 rd_data, /*id_no,*/ baudr, autolen, dly_line;
+    u32 rd_data, baudr, autolen, dly_line;
     u32 total_ava_wds=0;
     u32 tmp_str_pt, tmp_end_pt, pass, last_pass;
     struct ava_window max_wd;
@@ -841,9 +839,7 @@ SpicConfigAutoModeRtl8195A
                 BIT_RD_DUAL_IO |
                 BIT_RD_DUAL_I))));//Disable all the four and two bit commands.
     }
-
-
-    if (SpicDualBitMode == SpicBitMode) {
+    else  if (SpicDualBitMode == SpicBitMode) {
         #if FLASH_RD_2IO_EN
             HAL_SPI_WRITE32(REG_SPIC_READ_DUAL_ADDR_DATA, FLASH_CMD_2READ);
         #endif
@@ -856,8 +852,7 @@ SpicConfigAutoModeRtl8195A
                 (HAL_SPI_READ32(REG_SPIC_VALID_CMD)|(FLASH_VLD_DUAL_CMDS)));
 
     }
-
-    if (SpicQuadBitMode == SpicBitMode) {
+    else if (SpicQuadBitMode == SpicBitMode) {
         #if FLASH_WR_4IO_EN
             HAL_SPI_WRITE32(REG_SPIC_WRITE_QUAD_ADDR_DATA, FLASH_CMD_4PP);
         #endif
@@ -1358,15 +1353,16 @@ SpicNVMCalLoad(u8 BitMode, u8 CpuClk)
             SpicInitParaAllClk[BitMode][CpuClk].RdDummyCyle = pspci_para->RdDummyCyle;
             SpicInitParaAllClk[BitMode][CpuClk].DelayLine = pspci_para->DelayLine;
             SpicInitParaAllClk[BitMode][CpuClk].Valid = pspci_para->Valid;
-            DBG_SPIF_INFO("SpicNVMCalLoad: Calibration Loaded(BitMode %d, CPUClk %d): BaudRate=0x%x RdDummyCyle=0x%x DelayLine=0x%x\r\n", 
-                BitMode, CpuClk,
+            DBG_SPIF_INFO("%s: Calibration Loaded(BitMode %d, CPUClk %d): BaudRate=0x%x RdDummyCyle=0x%x DelayLine=0x%x\r\n",
+                __func__, BitMode, CpuClk,
                 SpicInitParaAllClk[BitMode][CpuClk].BaudRate,
                 SpicInitParaAllClk[BitMode][CpuClk].RdDummyCyle, 
                 SpicInitParaAllClk[BitMode][CpuClk].DelayLine);
         }
         else {
-            DBG_SPIF_WARN("SpicNVMCalLoad: Data in Flash(@ 0x%x = 0x%x 0x%x) is Invalid\r\n", 
-                (FLASH_SPIC_PARA_BASE+flash_offset), spci_para, spci_para_inv);
+            DBG_SPIF_WARN("%s: Data in Flash(@ 0x%x = 0x%x 0x%x) is Invalid\r\n",
+            	__func__,
+				(FLASH_SPIC_PARA_BASE+flash_offset), spci_para, spci_para_inv);
         }
         
     }
@@ -1411,7 +1407,7 @@ SpicNVMCalStore(u8 BitMode, u8 CpuClk)
 	SPIC_INIT_PARA SpicInitPara;	
 
 #if	CONFIG_DEBUG_LOG > 4
-    DBG_SPIF_INFO("SpicNVMCalStore==> BitMode=%d CpuClk=%d\r\n", BitMode, CpuClk);
+    DBG_SPIF_INFO("%s ==> BitMode=%d CpuClk=%d\r\n", __func__, BitMode, CpuClk);
 #endif
     /* each Calibration parameters use 8 bytes, first 4-bytes are the calibration data, 
        2nd 4-bytes are the validate data: ~(calibration data) */
@@ -1439,7 +1435,8 @@ SpicNVMCalStore(u8 BitMode, u8 CpuClk)
             SpicWaitWipDoneRefinedRtl8195A(SpicInitPara);
 
 #if	CONFIG_DEBUG_LOG > 4
-        DBG_SPIF_INFO("SpicNVMCalStore(BitMode %d, CPUClk %d): Calibration Stored: BaudRate=0x%x RdDummyCyle=0x%x DelayLine=0x%x\r\n",
+        DBG_SPIF_INFO("%s(BitMode %d, CPUClk %d): Calibration Stored: BaudRate=0x%x RdDummyCyle=0x%x DelayLine=0x%x\r\n",
+        	__func__,
             BitMode, CpuClk,
             SpicInitParaAllClk[BitMode][CpuClk].BaudRate,
             SpicInitParaAllClk[BitMode][CpuClk].RdDummyCyle, 
@@ -1447,18 +1444,21 @@ SpicNVMCalStore(u8 BitMode, u8 CpuClk)
 #endif
         // Read back to check
         if (HAL_READ32(SPI_FLASH_BASE, (FLASH_SPIC_PARA_BASE+flash_offset)) != spci_para) {
-            DBG_SPIF_ERR("SpicNVMCalStore Err(Offset=0x%x), Wr=0x%x Rd=0x%x \r\n", 
+            DBG_SPIF_ERR("%s: Err(Offset=0x%x), Wr=0x%x Rd=0x%x \r\n",
+            	__func__,
                 flash_offset, spci_para, HAL_READ32(SPI_FLASH_BASE, (FLASH_SPIC_PARA_BASE+flash_offset)));
         }
 
         if (HAL_READ32(SPI_FLASH_BASE, (FLASH_SPIC_PARA_BASE+flash_offset+4)) != ~spci_para) {
-            DBG_SPIF_ERR("SpicNVMCalStore Err(Offset=0x%x), Wr=0x%x Rd=0x%x \r\n", 
+            DBG_SPIF_ERR("%s: Err(Offset=0x%x), Wr=0x%x Rd=0x%x \r\n",
+            	__func__,
                 flash_offset+4, ~spci_para, HAL_READ32(SPI_FLASH_BASE, (FLASH_SPIC_PARA_BASE+flash_offset+4)));
         }
     }
     else {
         // There is a parameter on the flash memory already
-        DBG_SPIF_ERR("SpicNVMCalStore: The flash memory(@0x%x = 0x%x) is not able to be write, Erase it first!!\r\n", 
+        DBG_SPIF_ERR("%s: The flash memory(@0x%x = 0x%x) is not able to be write, Erase it first!\r\n",
+        	__func__,
             (FLASH_SPIC_PARA_BASE+flash_offset), spci_para);
     }
 }

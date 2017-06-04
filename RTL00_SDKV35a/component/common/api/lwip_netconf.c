@@ -103,8 +103,8 @@ struct netif xnetif[NET_IF_NUM]; /* network interface structure */
   * @retval None
   */
 #if CONFIG_WLAN
-extern  int error_flag;
-extern rtw_mode_t wifi_mode;
+extern  char error_flag;
+extern 	unsigned char wifi_mode; // rtw_mode_t
 #endif
 
 int lwip_init_done = 0;
@@ -131,25 +131,25 @@ void LwIP_Init(void)
 	The init function pointer must point to a initialization function for
 	your ethernet netif interface. The following code illustrates it's use.*/
 	//printf("NET_IF_NUM:%d\n\r",NET_IF_NUM);
-	for(idx=NET_IF_NUM - 1;idx>=0;idx--){
-		if(idx==0){
+	for(idx = NET_IF_NUM - 1; idx >= 0 ; idx--) {
+		if(idx == 0){
 			IP4_ADDR(&ipaddr, IP_ADDR0, IP_ADDR1, IP_ADDR2, IP_ADDR3);
 			IP4_ADDR(&netmask, NETMASK_ADDR0, NETMASK_ADDR1 , NETMASK_ADDR2, NETMASK_ADDR3);
 			IP4_ADDR(&gw, GW_ADDR0, GW_ADDR1, GW_ADDR2, GW_ADDR3);
 		}
-		else{
+#if CONFIG_ETHERNET
+		else if(idx == NET_IF_NUM - 1)
+		{
+			IP4_ADDR(&ipaddr, ETH_IP_ADDR0, ETH_IP_ADDR1, ETH_IP_ADDR2, ETH_IP_ADDR3);
+			IP4_ADDR(&netmask, ETH_NETMASK_ADDR0, ETH_NETMASK_ADDR1 , ETH_NETMASK_ADDR2, ETH_NETMASK_ADDR3);
+			IP4_ADDR(&gw, ETH_GW_ADDR0, ETH_GW_ADDR1, ETH_GW_ADDR2, ETH_GW_ADDR3);
+		}
+#endif
+		else {
 			IP4_ADDR(&ipaddr, AP_IP_ADDR0, AP_IP_ADDR1, AP_IP_ADDR2, AP_IP_ADDR3);
 			IP4_ADDR(&netmask, AP_NETMASK_ADDR0, AP_NETMASK_ADDR1 , AP_NETMASK_ADDR2, AP_NETMASK_ADDR3);
 			IP4_ADDR(&gw, AP_GW_ADDR0, AP_GW_ADDR1, AP_GW_ADDR2, AP_GW_ADDR3);
 		}
-#if CONFIG_ETHERNET
-    if(idx == NET_IF_NUM - 1)
-    {
-			IP4_ADDR(&ipaddr, ETH_IP_ADDR0, ETH_IP_ADDR1, ETH_IP_ADDR2, ETH_IP_ADDR3);
-			IP4_ADDR(&netmask, ETH_NETMASK_ADDR0, ETH_NETMASK_ADDR1 , ETH_NETMASK_ADDR2, ETH_NETMASK_ADDR3);
-			IP4_ADDR(&gw, ETH_GW_ADDR0, ETH_GW_ADDR1, ETH_GW_ADDR2, ETH_GW_ADDR3);    	
-    }
-#endif
 		xnetif[idx].name[0] = 'r';
 		xnetif[idx].name[1] = '0'+idx;
 		
@@ -159,17 +159,16 @@ void LwIP_Init(void)
     else
       netif_add(&xnetif[idx], &ipaddr, &netmask, &gw, NULL, &ethernetif_init, &tcpip_input);
 #else
-    netif_add(&xnetif[idx], &ipaddr, &netmask, &gw, NULL, &ethernetif_init, &tcpip_input);
+    	netif_add(&xnetif[idx], &ipaddr, &netmask, &gw, NULL, &ethernetif_init, &tcpip_input);
 #endif
-    printf("interface %d is initialized\n", idx);
-
+    	info_printf("interface %d is initialized\n", idx);
 	}
 	
 	/*  Registers the default network interface. */
 	netif_set_default(&xnetif[0]);
 	
 	/*  When the netif is fully configured this function must be called.*/
-	for(idx = 0;idx < NET_IF_NUM;idx++)
+	for(idx = 0; idx < NET_IF_NUM; idx++)
 		netif_set_up(&xnetif[idx]); 
 	
 	lwip_init_done = 1;	 
@@ -205,7 +204,7 @@ uint8_t LwIP_DHCP(uint8_t idx, uint8_t dhcp_state) {
 	}
 
 	for (;;) {
-		//printf("\n\r ========DHCP_state:%d============\n\r",DHCP_state);
+		//info_printf("\n\r ========DHCP_state:%d============\n\r",DHCP_state);
 		switch (DHCP_state) {
 		case DHCP_START: {
 #if CONFIG_WLAN
@@ -233,7 +232,7 @@ uint8_t LwIP_DHCP(uint8_t idx, uint8_t dhcp_state) {
 				iptab[1] = (uint8_t) (IPaddress >> 16);
 				iptab[2] = (uint8_t) (IPaddress >> 8);
 				iptab[3] = (uint8_t) (IPaddress);
-				printf("Interface %d IP address: %d.%d.%d.%d\n", idx, iptab[3],
+				info_printf("Interface %d IP address: %d.%d.%d.%d\n", idx, iptab[3],
 						iptab[2], iptab[1], iptab[0]);
 #if CONFIG_WLAN
 				error_flag = RTW_NO_ERROR;
@@ -257,8 +256,8 @@ uint8_t LwIP_DHCP(uint8_t idx, uint8_t dhcp_state) {
 					iptab[1] = IP_ADDR2;
 					iptab[2] = IP_ADDR1;
 					iptab[3] = IP_ADDR0;
-					printf("Interface %d DHCP timeout\n", idx);
-					printf("Static IP address: %d.%d.%d.%d\n", iptab[3], iptab[2], iptab[1], iptab[0]);
+					info_printf("Interface %d DHCP timeout\n", idx);
+					info_printf("Static IP address: %d.%d.%d.%d\n", iptab[3], iptab[2], iptab[1], iptab[0]);
 #if CONFIG_WLAN
 					error_flag = RTW_DHCP_FAIL;
 #endif
@@ -280,14 +279,14 @@ uint8_t LwIP_DHCP(uint8_t idx, uint8_t dhcp_state) {
 #if CONFIG_WLAN
 			wifi_unreg_event_handler(WIFI_EVENT_BEACON_AFTER_DHCP, wifi_rx_beacon_hdl);
 #endif
-			printf("LwIP_DHCP: Release ip\n");
+			info_printf("LwIP_DHCP(%d): Release ip\n", idx);
 			dhcp_release_unicast(pnetif);
 			return DHCP_RELEASE_IP;
 		case DHCP_STOP:
 #if CONFIG_WLAN
 			wifi_unreg_event_handler(WIFI_EVENT_BEACON_AFTER_DHCP, wifi_rx_beacon_hdl);
 #endif
-			printf("LwIP_DHCP: dhcp stop.\n");
+			info_printf("LwIP_DHCP(%d): dhcp stop.\n", idx);
 			dhcp_stop(pnetif);
 			return DHCP_STOP;
 		default:

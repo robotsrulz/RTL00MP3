@@ -530,7 +530,14 @@ static void prvResetNextTaskUnblockTime( void );
 
 /*-----------------------------------------------------------*/
 
-BaseType_t xTaskGenericCreate( TaskFunction_t pxTaskCode, const char * const pcName, const uint16_t usStackDepth, void * const pvParameters, UBaseType_t uxPriority, TaskHandle_t * const pxCreatedTask, StackType_t * const puxStackBuffer, const MemoryRegion_t * const xRegions ) /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
+BaseType_t xTaskGenericCreate( TaskFunction_t pxTaskCode, 
+								const char * const pcName, 
+								const uint16_t usStackDepth, 
+								void * const pvParameters, 
+								UBaseType_t uxPriority, 
+								TaskHandle_t * const pxCreatedTask, 
+								StackType_t * const puxStackBuffer, 
+								const MemoryRegion_t * const xRegions ) /*lint !e971 Unqualified char types are allowed for strings and single characters only. */
 {
 BaseType_t xReturn;
 TCB_t * pxNewTCB;
@@ -1704,11 +1711,11 @@ TickType_t xTaskGetTickCount( void )
 TickType_t xTicks;
 
 	/* Critical section required if running on a 16 bit processor. */
-	taskENTER_CRITICAL();
+//	taskENTER_CRITICAL();
 	{
 		xTicks = xTickCount;
 	}
-	taskEXIT_CRITICAL();
+//	taskEXIT_CRITICAL();
 
 	return xTicks;
 }
@@ -3016,7 +3023,6 @@ static void prvAddCurrentTaskToDelayedList( const TickType_t xTimeToWake )
 	}
 }
 /*-----------------------------------------------------------*/
-
 static TCB_t *prvAllocateTCBAndStack( const uint16_t usStackDepth, StackType_t * const puxStackBuffer )
 {
 TCB_t *pxNewTCB;
@@ -3030,12 +3036,12 @@ TCB_t *pxNewTCB;
 		/* Allocate space for the stack used by the task being created.
 		The base of the stack memory stored in the TCB so the task can
 		be deleted later if required. */
-//pvvx
-#if CONFIG_USE_TCM_HEAP
+#if configUSE_STACK_TCM_HEAP
 		if(puxStackBuffer == NULL) {
-			pxNewTCB->pxStack = ( StackType_t * ) tcm_heap_malloc((( size_t ) puxStackBuffer) * sizeof(StackType_t));
-			if(pxNewTCB->pxStack == NULL) pxNewTCB->pxStack = ( StackType_t * ) pvPortMalloc((( size_t ) puxStackBuffer) * sizeof(StackType_t));
+			pxNewTCB->pxStack = ( StackType_t * ) tcm_heap_malloc((( size_t ) usStackDepth) * sizeof(StackType_t));
+			if(pxNewTCB->pxStack == NULL) pxNewTCB->pxStack = ( StackType_t * ) pvPortMalloc((( size_t ) usStackDepth) * sizeof(StackType_t));
 		}
+		else pxNewTCB->pxStack = puxStackBuffer;
 #else
 		pxNewTCB->pxStack = ( StackType_t * ) pvPortMallocAligned( ( ( ( size_t ) usStackDepth ) * sizeof( StackType_t ) ), puxStackBuffer ); /*lint !e961 MISRA exception as the casts are only redundant for some ports. */
 #endif
@@ -3485,6 +3491,14 @@ TCB_t *pxTCB;
 
 #endif /* portCRITICAL_NESTING_IN_TCB */
 /*-----------------------------------------------------------*/
+char * sprintf_pcTaskName(char * buf, char * name)
+{
+	int len = sprintf(buf, name);
+	if(len < configMAX_TASK_NAME_LEN) {
+		memset(buf + len, ' ', configMAX_TASK_NAME_LEN - len);
+	}
+	return buf + configMAX_TASK_NAME_LEN;
+}
 
 #if ( ( configUSE_TRACE_FACILITY == 1 ) && ( configUSE_STATS_FORMATTING_FUNCTIONS == 1 ) )
 
@@ -3556,8 +3570,9 @@ TCB_t *pxTCB;
 									cStatus = 0x00;
 									break;
 				}
+				pcWriteBuffer = sprintf_pcTaskName( pcWriteBuffer,	pxTaskStatusArray[ x ].pcTaskName);
 
-				sprintf( pcWriteBuffer, "%s\t\t%c\t%u\t%u\t%u\r\n", pxTaskStatusArray[ x ].pcTaskName, cStatus, ( unsigned int ) pxTaskStatusArray[ x ].uxCurrentPriority, ( unsigned int ) pxTaskStatusArray[ x ].usStackHighWaterMark, ( unsigned int ) pxTaskStatusArray[ x ].xTaskNumber );
+				sprintf( pcWriteBuffer, "\t%c\t%u\t%u\t%u\r\n", cStatus, ( unsigned int ) pxTaskStatusArray[ x ].uxCurrentPriority, ( unsigned int ) pxTaskStatusArray[ x ].usStackHighWaterMark, ( unsigned int ) pxTaskStatusArray[ x ].xTaskNumber );
 				pcWriteBuffer += strlen( pcWriteBuffer );
 			}
 
@@ -3641,7 +3656,7 @@ TCB_t *pxTCB;
 					/* What percentage of the total run time has the task used?
 					This will always be rounded down to the nearest integer.
 					ulTotalRunTimeDiv100 has already been divided by 100. */
-#if 0
+#if 1
 					ulStatsAsPercentage = pxTaskStatusArray[ x ].ulRunTimeCounter / ulTotalTime;
 #else
 					ulStatsAsPercentage = (100*pxTaskStatusArray[ x ].ulDelataRunTimeCounterOfPeroid) / ulDeltaTotalRunTime;
@@ -3651,25 +3666,25 @@ TCB_t *pxTCB;
 					else
 						ulDeltaRunTimeCounter = portCONFIGURE_STATS_PEROID_VALUE*ulStatsAsPercentage/100;
 #endif
-
+					pcWriteBuffer = sprintf_pcTaskName( pcWriteBuffer, pxTaskStatusArray[ x ].pcTaskName);
 					if( ulStatsAsPercentage > 0UL )
 					{
 						#ifdef portLU_PRINTF_SPECIFIER_REQUIRED
 						{
-#if 0
-							sprintf( pcWriteBuffer, "%s\t\t%lu\t\t%lu%%\n", pxTaskStatusArray[ x ].pcTaskName, pxTaskStatusArray[ x ].ulRunTimeCounter, ulStatsAsPercentage );
+#if 1
+							sprintf( pcWriteBuffer, "\t%lu\t\t%lu%%\n", pxTaskStatusArray[ x ].ulRunTimeCounter, ulStatsAsPercentage );
 #else
-							sprintf( pcWriteBuffer, "%s\t\t%lu\t\t%lu%%\n", pxTaskStatusArray[ x ].pcTaskName, ulDeltaRunTimeCounter, ulStatsAsPercentage );
+							sprintf( pcWriteBuffer, "\t%lu\t\t%lu%%\n", ulDeltaRunTimeCounter, ulStatsAsPercentage );
 #endif
 						}
 						#else
 						{
 							/* sizeof( int ) == sizeof( long ) so a smaller
 							printf() library can be used. */
-#if 0							
-							sprintf( pcWriteBuffer, "%s\t\t%u\t\t%u%%\n", pxTaskStatusArray[ x ].pcTaskName, ( unsigned int ) pxTaskStatusArray[ x ].ulRunTimeCounter, ( unsigned int ) ulStatsAsPercentage );
+#if 1
+							sprintf( pcWriteBuffer, "\t%lu\t\t%u%%\n", ( unsigned int ) pxTaskStatusArray[ x ].ulRunTimeCounter, ( unsigned int ) ulStatsAsPercentage );
 #else
-							sprintf( pcWriteBuffer, "%s\t\t%u\t\t%u%%\n", pxTaskStatusArray[ x ].pcTaskName, ( unsigned int ) ulDeltaRunTimeCounter, ( unsigned int ) ulStatsAsPercentage );
+							sprintf( pcWriteBuffer, "\t%u\t\t%u%%\n", ( unsigned int ) ulDeltaRunTimeCounter, ( unsigned int ) ulStatsAsPercentage );
 #endif
 						}
 						#endif
@@ -3680,20 +3695,20 @@ TCB_t *pxTCB;
 						consumed less than 1% of the total run time. */
 						#ifdef portLU_PRINTF_SPECIFIER_REQUIRED
 						{
-#if 0						
-							sprintf( pcWriteBuffer, "%s\t\t%lu\t\t<1%%\n", pxTaskStatusArray[ x ].pcTaskName, pxTaskStatusArray[ x ].ulRunTimeCounter );
+#if 1
+							sprintf( pcWriteBuffer, "\t%lu\t\t<1%%\n", pxTaskStatusArray[ x ].ulRunTimeCounter );
 #else
-							sprintf( pcWriteBuffer, "%s\t\t%lu\t\t<1%%\n", pxTaskStatusArray[ x ].pcTaskName, ulDeltaRunTimeCounter );
+							sprintf( pcWriteBuffer, "\t%lu\t\t<1%%\n", ulDeltaRunTimeCounter );
 #endif
 						}
 						#else
 						{
 							/* sizeof( int ) == sizeof( long ) so a smaller
 							printf() library can be used. */
-#if 0							
-							sprintf( pcWriteBuffer, "%s\t\t%u\t\t<1%%\n", pxTaskStatusArray[ x ].pcTaskName, ( unsigned int ) pxTaskStatusArray[ x ].ulRunTimeCounter );
+#if 1
+							sprintf( pcWriteBuffer, "\t%lu\t\t<1%%\n", ( unsigned int ) pxTaskStatusArray[ x ].ulRunTimeCounter );
 #else
-							sprintf( pcWriteBuffer, "%s\t\t%u\t\t<1%%\n", pxTaskStatusArray[ x ].pcTaskName, ( unsigned int ) ulDeltaRunTimeCounter );
+							sprintf( pcWriteBuffer, "\t%u\t\t<1%%\n", ( unsigned int ) ulDeltaRunTimeCounter );
 #endif
 						}
 						#endif

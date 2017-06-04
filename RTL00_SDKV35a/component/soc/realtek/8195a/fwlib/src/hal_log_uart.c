@@ -50,6 +50,14 @@ extern VOID UartLogIrqHandleRam(VOID * Data);
 // extern ConfigDebugInfo;
 // extern UartLogIrqHandleRam;
 //-------------------------------------------------------------------------
+/*
+ *  16 bytes FIFO ... 16*11/38400 = 0.004583 sec
+ *  (0.005/5)*166666666 = 166666.666
+ */
+VOID HalLogUartWaitTxFifoEmpty(VOID) {
+	int x = 16384;
+	while((!(HAL_READ8(LOG_UART_REG_BASE, 0x14) & BIT6)) && x--);
+}
 
 //----- HalLogUartIrqRxRdyHandle
 void HalLogUartIrqRxRdyHandle(HAL_LOG_UART_ADAPTER *pUartAdapter) {
@@ -153,7 +161,7 @@ void HalLogUartIrqHandle(VOID * Data) {
 void HalLogUartSetBaudRate(HAL_LOG_UART_ADAPTER *pUartAdapter) {
 	u32 clk4 = HalGetCpuClk() >> 2; // PLATFORM_CLOCK/2; // (unsigned int) HalGetCpuClk() >> 2; // div 4
 	if (pUartAdapter->BaudRate == 0)
-		pUartAdapter->BaudRate = UART_BAUD_RATE_38400;
+		pUartAdapter->BaudRate = DEFAULT_BAUDRATE;
 	u32 br16 = pUartAdapter->BaudRate << 4; // * 16
 	if ((br16 != 0) && (br16 <= clk4)) {
 		unsigned int dll = clk4 / br16;
@@ -192,7 +200,7 @@ u32 HalLogUartInitSetting(HAL_LOG_UART_ADAPTER *pUartAdapter) {
 //  HalPinCtrlRtl8195A(LOG_UART, 0, 1); ????
 	u32 clk4 = HalGetCpuClk() >> 2; // PLATFORM_CLOCK/2; // (unsigned int) HalGetCpuClk() >> 2; // div 4
 	if (pUartAdapter->BaudRate == 0)
-		pUartAdapter->BaudRate = UART_BAUD_RATE_38400;
+		pUartAdapter->BaudRate = DEFAULT_BAUDRATE;
 	u32 br16 = pUartAdapter->BaudRate << 4; // * 16
 	HAL_UART_WRITE32(UART_INTERRUPT_EN_REG_OFF, 0); // 40003004 = 0;
 	if (br16 <= clk4) {
@@ -410,7 +418,7 @@ void HalInitLogUart(void) {
 	HAL_PERI_ON_WRITE32(REG_PESOC_CLK_CTRL,
 			HAL_PERI_ON_READ32(REG_PESOC_CLK_CTRL) | BIT_SOC_ACTCK_LOG_UART_EN); // 40000230 |= 0x1000u;
 	HalPinCtrlRtl8195A(LOG_UART, 0, 1);
-	UartAdapter.BaudRate = UART_BAUD_RATE_38400;
+	UartAdapter.BaudRate = DEFAULT_BAUDRATE;
 	UartAdapter.DataLength = UART_DATA_LEN_8BIT;
 	UartAdapter.FIFOControl = FCR_RX_TRIG_MASK | FCR_FIFO_EN; // 0xC1;
 	UartAdapter.IntEnReg = IER_ERBFI | IER_ELSI; // 5
@@ -427,8 +435,7 @@ void HalInitLogUart(void) {
 
 //----- HalDeinitLogUart
 void HalDeinitLogUart(void) {
-	while (!(HAL_UART_READ32(UART_LINE_STATUS_REG_OFF) & LSR_TEMT)) // 40003014 & 0x40
-		HalDelayUs(20);
+	HalLogUartWaitTxFifoEmpty();
 	HalPinCtrlRtl8195A(LOG_UART, 0, 0);
 }
 

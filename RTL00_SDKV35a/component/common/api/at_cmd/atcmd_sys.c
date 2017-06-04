@@ -146,12 +146,12 @@ void fATSR(void *arg)
 #if CONFIG_UART_XMODEM
 void fATSY(void *arg)
 {
-#ifdef RTL8710AF
-	OTU_FW_Update(0, 0, 115200);
-#else
-	// use xmodem to update, RX: PA_6, TX: PA_7, baudrate: 1M
-	OTU_FW_Update(0, 2, 115200);
-#endif
+	if (HalGetChipId() < CHIP_ID_8195AM) {
+		OTU_FW_Update(0, 0, 115200);
+	} else {
+		// use xmodem to update, RX: PA_6, TX: PA_7, baudrate: 1M
+		OTU_FW_Update(0, 2, 115200);
+	}
 }
 #endif
 
@@ -618,7 +618,7 @@ void fATSx(void *arg)
 
 #define ATCMD_VERSION		"v2" //ATCMD MAJOR VERSION, AT FORMAT CHANGED
 #define ATCMD_SUBVERSION	"2" //ATCMD MINOR VERSION, NEW COMMAND ADDED
-#define ATCMD_REVISION		"1" //ATCMD FIX BUG REVISION
+#define ATCMD_REVISION		"2" //ATCMD FIX BUG REVISION
 #define SDK_VERSION		"v3.5" //SDK VERSION
 extern void sys_reset(void);
 void print_system_at(void *arg);
@@ -945,62 +945,70 @@ void fATSU(void *arg) {
 		return;
 	}
 	if ((argc = parse_param(arg, argv)) != 7) {
-		AT_DBG_MSG(AT_FLAG_COMMON, AT_DBG_ERROR,
-				"[ATSU] Usage: ATSU=<baud>,<databits>,<stopbits>,<parity>,<flowcontrol>,<configmode>");
-		at_printf("\r\n[ATSU] ERROR:1");
-		return;
+		if(argv[1][0] == '?') {
+			read_uart_atcmd_setting_from_system_data(&uartconf);
+			at_printf("\r\n");
+			at_printf( "AT_UART_CONF: %d,%d,%d,%d,%d",
+					uartconf.BaudRate, uartconf.DataBits, uartconf.StopBits,
+					uartconf.Parity, uartconf.FlowControl);
+//			return;
+		}
+		else {
+			AT_DBG_MSG(AT_FLAG_COMMON, AT_DBG_ERROR,
+					"[ATSU] Usage: ATSU=<baud>,<databits>,<stopbits>,<parity>,<flowcontrol>,<configmode>");
+			at_printf("\r\n[ATSU] ERROR:1");
+			return;
+		}
 	}
+	else {
+		baud = atoi(argv[1]);
+		databits = atoi(argv[2]);
+		stopbits = atoi(argv[3]);
+		parity = atoi(argv[4]);
+		flowcontrol = atoi(argv[5]);
+		configmode = atoi(argv[6]);
+		/*
+		 // Check Baud rate
+		 for (i=0; log_uart_support_rate[i]!=0xFFFFFF; i++) {
+		 if (log_uart_support_rate[i] == baud) {
+		 break;
+		 }
+		 }
 
-	baud = atoi(argv[1]);
-	databits = atoi(argv[2]);
-	stopbits = atoi(argv[3]);
-	parity = atoi(argv[4]);
-	flowcontrol = atoi(argv[5]);
-	configmode = atoi(argv[6]);
-	/*
-	 // Check Baud rate
-	 for (i=0; log_uart_support_rate[i]!=0xFFFFFF; i++) {
-	 if (log_uart_support_rate[i] == baud) {
-	 break;
-	 }
-	 }
-
-	 if (log_uart_support_rate[i]== 0xFFFFFF) {
-	 at_printf("\r\n[ATSU] ERROR:2");
-	 return;
-	 }
-	 */
-	if (((databits < 5) || (databits > 8)) || ((stopbits < 1) || (stopbits > 2))
-			|| ((parity < 0) || (parity > 2))
-			|| ((flowcontrol < 0) || (flowcontrol > 1))
-			|| ((configmode < 0) || (configmode > 3))\
-) {
-		at_printf("\r\n[ATSU] ERROR:2");
-		return;
+		 if (log_uart_support_rate[i]== 0xFFFFFF) {
+		 at_printf("\r\n[ATSU] ERROR:2");
+		 return;
+		 }
+		 */
+		if (((databits < 5) || (databits > 8)) || ((stopbits < 1) || (stopbits > 2))
+				|| ((parity < 0) || (parity > 2))
+				|| ((flowcontrol < 0) || (flowcontrol > 1))
+				|| ((configmode < 0) || (configmode > 3)) ) {
+			at_printf("\r\n[ATSU] ERROR:2");
+			return;
+		}
+		memset((void*) &uartconf, 0, sizeof(UART_LOG_CONF));
+		uartconf.BaudRate = baud;
+		uartconf.DataBits = databits;
+		uartconf.StopBits = stopbits;
+		uartconf.Parity = parity;
+		uartconf.FlowControl = flowcontrol;
+		AT_DBG_MSG(AT_FLAG_COMMON, AT_DBG_ALWAYS, "AT_UART_CONF: %d,%d,%d,%d,%d",
+				uartconf.BaudRate, uartconf.DataBits, uartconf.StopBits,
+				uartconf.Parity, uartconf.FlowControl);
+		switch (configmode) {
+		case 0: // set current configuration, won't save
+			uart_atcmd_reinit(&uartconf);
+			break;
+		case 1: // set current configuration, and save
+			write_uart_atcmd_setting_to_system_data(&uartconf);
+			uart_atcmd_reinit(&uartconf);
+			break;
+		case 2: // set configuration, reboot to take effect
+			write_uart_atcmd_setting_to_system_data(&uartconf);
+			break;
+		}
 	}
-
-	memset((void*) &uartconf, 0, sizeof(UART_LOG_CONF));
-	uartconf.BaudRate = baud;
-	uartconf.DataBits = databits;
-	uartconf.StopBits = stopbits;
-	uartconf.Parity = parity;
-	uartconf.FlowControl = flowcontrol;
-	AT_DBG_MSG(AT_FLAG_COMMON, AT_DBG_ALWAYS, "AT_UART_CONF: %d,%d,%d,%d,%d",
-			uartconf.BaudRate, uartconf.DataBits, uartconf.StopBits,
-			uartconf.Parity, uartconf.FlowControl);
-	switch (configmode) {
-	case 0: // set current configuration, won't save
-		uart_atcmd_reinit(&uartconf);
-		break;
-	case 1: // set current configuration, and save
-		write_uart_atcmd_setting_to_system_data(&uartconf);
-		uart_atcmd_reinit(&uartconf);
-		break;
-	case 2: // set configuration, reboot to take effect
-		write_uart_atcmd_setting_to_system_data(&uartconf);
-		break;
-	}
-
 	at_printf("\r\n[ATSU] OK");
 }
 #endif //#if CONFIG_EXAMPLE_UART_ATCMD
@@ -1158,17 +1166,18 @@ void fATSL(void *arg) {
 #if CONFIG_UART_XMODEM
 void fATSX(void *arg)
 {
-#ifdef RTL8710AF
-	// use xmodem to update, RX: PC_0, TX: PC_3, baudrate: 1M
+	if (HalGetChipId() < CHIP_ID_8195AM) {
+
+		// use xmodem to update, RX: PC_0, TX: PC_3, baudrate: 1M
 		OTU_FW_Update(0, 0, 115200);
-	// use xmodem to update, RX: PE_3, TX: PE_0, baudrate: 1M
-	//  JTAG Off!
-	//	OTU_FW_Update(0, 1, 115200);
-#else
-//#error "Set OTU_FW_Update UARTx pins!"
-	// use xmodem to update, RX: PA_6, TX: PA_7, baudrate: 1M
-	OTU_FW_Update(0, 2, 115200);
-#endif
+		// use xmodem to update, RX: PE_3, TX: PE_0, baudrate: 1M
+		//  JTAG Off!
+		//	OTU_FW_Update(0, 1, 115200);
+	}
+	else {	
+		// use xmodem to update, RX: PA_6, TX: PA_7, baudrate: 1M
+		OTU_FW_Update(0, 2, 115200);
+	};
 	at_printf("\r\n[ATSX] OK");
 }
 #endif
@@ -1280,25 +1289,20 @@ void fATFO(void *arg) {
 	}
 }
 
+// Mem info
 void fATST(void *arg) {
 	extern void dump_mem_block_list(void); // heap_5.c
-//DBG_INFO_MSG_ON(_DBG_TCM_HEAP_); // On Debug TCM MEM
-#if	DEBUG_AT_USER_LEVEL > 1
-	printf("ATST: Mem info:\n");
-#endif
-//		vPortFree(pvPortMalloc(4)); // Init RAM heap
 	printf("\nCLK CPU\t\t%d Hz\nRAM heap\t%d bytes\nTCM heap\t%d bytes\n",
 			HalGetCpuClk(), xPortGetFreeHeapSize(), tcm_heap_freeSpace());
+#if CONFIG_DEBUG_LOG > 1
 	dump_mem_block_list();
-	u32 saved = ConfigDebugInfo;
-	DBG_INFO_MSG_ON(_DBG_TCM_HEAP_); // On Debug TCM MEM
 	tcm_heap_dump();
-	ConfigDebugInfo = saved;
+#endif;
 	printf("\n");
 #if (configGENERATE_RUN_TIME_STATS == 1)
 	char *cBuffer = pvPortMalloc(512);
-	if (cBuffer != NULL) {
-		vTaskGetRunTimeStats((char *) cBuffer);
+	if(cBuffer != NULL) {
+		vTaskGetRunTimeStats((char *)cBuffer);
 		printf("%s", cBuffer);
 	}
 	vPortFree(cBuffer);
@@ -1306,9 +1310,15 @@ void fATST(void *arg) {
 }
 
 #if 0
-#include "wlan_lib.h"
+#if 1
+#include "drv_types.h" // or #include "wlan_lib.h"
+#else
+#include "wifi_constants.h"
+#include "wifi_structures.h"
+#include "wlan_lib.h" // or #include "drv_types.h"
+#endif
 #include "hal_com_reg.h"
-// struct net_device *rltk_wlan_info;
+// extern Rltk_wlan_t rltk_wlan_info[2];
 void fATXT(void *arg)
 {
 #if	DEBUG_AT_USER_LEVEL > 3
@@ -1372,7 +1382,7 @@ log_item_t at_sys_items[] = {
 		{ "ATSE", fATSE },	// enable and disable echo
 #if CONFIG_WLAN
 #if CONFIG_WEBSERVER
-		{	"ATSW", fATSW},	// start webserver
+		{ "ATSW", fATSW},	// start webserver
 #endif
 		{ "ATSY", fATSY },	// factory reset
 #if CONFIG_OTA_UPDATE

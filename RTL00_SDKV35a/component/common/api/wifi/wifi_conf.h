@@ -1,6 +1,6 @@
 //----------------------------------------------------------------------------//
-#ifndef __WIFI_API_H
-#define __WIFI_API_H
+#ifndef __WIFI_CONF_API_H
+#define __WIFI_CONF_API_H
 
 #include "FreeRTOS.h"
 #include "wifi_constants.h"   
@@ -9,9 +9,11 @@
 #include "wifi_ind.h"    
 #include <platform/platform_stdlib.h>
 
+
 #ifdef __cplusplus
   extern "C" {
 #endif
+
 
 /******************************************************
  *                    Macros
@@ -70,20 +72,21 @@ typedef struct {
 /******************************************************
  *                    Structures
  ******************************************************/
+#define SCAN_USE_SEMAPHORE	0
+
 typedef struct internal_scan_handler{
 	rtw_scan_result_t** pap_details;
 	rtw_scan_result_t * ap_details;
-	int	scan_cnt;
-	rtw_bool_t	scan_complete;
-	unsigned char	max_ap_size;
 	rtw_scan_result_handler_t gscan_result_handler;
 #if SCAN_USE_SEMAPHORE
-	void *scan_semaphore;
-#else
-	int 	scan_running;
+	void	*		scan_semaphore;
 #endif
-	void*	user_data;
-	unsigned int	scan_start_time;
+	//	unsigned int	scan_start_time;
+	void	*		user_data;
+	unsigned char	scan_cnt;
+	unsigned char	max_ap_size;
+	volatile unsigned char	scan_complete;
+	volatile unsigned char	scan_running;
 } internal_scan_handler_t;
 
 typedef struct {
@@ -137,14 +140,14 @@ int wifi_manager_init(void);
  *   	   	 RTW_ERROR   : if an error occurred
  */
 int wifi_connect(
+	unsigned char 		bssid[ETH_ALEN],
+	char 				use_bssid,
 	char 				*ssid,
-	rtw_security_t	security_type,
+	rtw_security_t		security_type,
 	char 				*password,
-	int 				ssid_len,
-	int 				password_len,
 	int 				key_id,
 	void 				*semaphore);
-
+/*
 int wifi_connect_bssid(
 	unsigned char 		bssid[ETH_ALEN],
 	char 				*ssid,
@@ -155,7 +158,7 @@ int wifi_connect_bssid(
 	int 				password_len,
 	int 				key_id,
 	void 				*semaphore);
-
+*/
 /** Disassociates from a Wi-Fi network.
  *
  * @return    RTW_SUCCESS : On successful disassociation from 
@@ -170,13 +173,12 @@ int wifi_disconnect(void);
  *           RTW_FALSE   : If it's not
 */
 int wifi_is_connected_to_ap(void);
+
 /*check if  wifi has connected to AP before dhcp
 *
 * @return RTW_SUCCESS:if conneced
 		 RTW_ERROR    :if not connect
 */
-
-
 int wifi_is_up(rtw_interface_t interface);
 
 /** Determines if a particular interface is ready to transceive ethernet packets
@@ -410,7 +412,6 @@ int wifi_set_tdma_param(unsigned char slot_period, unsigned char rfon_period_len
  *         RTW_ERROR otherwise
  */
 int wifi_set_lps_dtim(unsigned char dtim);
-
 /**
  * Get LPS DTIM
  *
@@ -446,6 +447,8 @@ int wifi_get_lps_dtim(unsigned char *dtim);
  * @return    RTW_SUCCESS : if successfully creates an AP
  *            RTW_ERROR   : if an error occurred
  */
+int wifi_start_ap(char *ssid, rtw_security_t security_type, char *password, int channel, char ssid_hidden);
+/*
 int wifi_start_ap(
 	char 				*ssid,
 	rtw_security_t		security_type,
@@ -453,7 +456,7 @@ int wifi_start_ap(
 	int 				ssid_len,
 	int 				password_len,
 	int					channel);
-
+*/
 /** Starts an infrastructure WiFi network with hidden SSID
  *
  * @warning If a STA interface is active when this function is called, the softAP will\n
@@ -478,6 +481,7 @@ int wifi_start_ap(
  * @return    RTW_SUCCESS : if successfully creates an AP
  *            RTW_ERROR   : if an error occurred
  */
+/*
 int wifi_start_ap_with_hidden_ssid(
 	char 				*ssid,
 	rtw_security_t		security_type,
@@ -485,7 +489,7 @@ int wifi_start_ap_with_hidden_ssid(
 	int 				ssid_len,
 	int 				password_len,
 	int					channel);
-
+*/
 /** Initiates a scan to search for 802.11 networks.
  *
  *  The scan progressively accumulates results over time, and
@@ -517,9 +521,9 @@ int wifi_start_ap_with_hidden_ssid(
  *
  * @return    RTW_SUCCESS or RTW_ERROR
  */
-int wifi_scan(rtw_scan_type_t                    scan_type,
-				  rtw_bss_type_t                     bss_type,
-				  void*                result_ptr);
+int wifi_scan(rtw_scan_type_t		scan_type,
+				  rtw_bss_type_t	bss_type,
+				  void*				result_ptr);
 
 /** Initiates a scan to search for 802.11 networks, a higher
  *  level API based on wifi_scan to simplify the scan
@@ -566,7 +570,7 @@ int wifi_set_pscan_chan(__u8 * channel_list,__u8 * pscan_config, __u8 length);
  *
  * @return    RTW_SUCCESS or RTW_ERROR
  */
-int wifi_get_setting(const char *ifname,rtw_wifi_setting_t *pSetting);
+int wifi_get_setting(const char *ifname, rtw_wifi_setting_t *pSetting);
 
 /** Show the network information
  *  
@@ -638,8 +642,6 @@ int wifi_restart_ap(
 	unsigned char 		*ssid,
 	rtw_security_t		security_type,
 	unsigned char 		*password,
-	int 				ssid_len,
-	int 				password_len,
 	int					channel);
 
 int wifi_config_autoreconnect(__u8 mode, __u8 retyr_times, __u16 timeout);
@@ -705,6 +707,6 @@ int wifi_remove_packet_filter(unsigned char filter_id);
   }
 #endif
 
-#endif // __WIFI_API_H
+#endif // __WIFI_CONF_API_H
 
 //----------------------------------------------------------------------------//

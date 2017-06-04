@@ -103,45 +103,6 @@
 #define DNS_MAX_TTL               604800
 #endif
 
-/* DNS protocol flags */
-#define DNS_FLAG1_RESPONSE        0x80
-#define DNS_FLAG1_OPCODE_STATUS   0x10
-#define DNS_FLAG1_OPCODE_INVERSE  0x08
-#define DNS_FLAG1_OPCODE_STANDARD 0x00
-#define DNS_FLAG1_AUTHORATIVE     0x04
-#define DNS_FLAG1_TRUNC           0x02
-#define DNS_FLAG1_RD              0x01
-#define DNS_FLAG2_RA              0x80
-#define DNS_FLAG2_ERR_MASK        0x0f
-#define DNS_FLAG2_ERR_NONE        0x00
-#define DNS_FLAG2_ERR_NAME        0x03
-
-/* DNS protocol states */
-#define DNS_STATE_UNUSED          0
-#define DNS_STATE_NEW             1
-#define DNS_STATE_ASKING          2
-#define DNS_STATE_DONE            3
-
-#ifdef PACK_STRUCT_USE_INCLUDES
-#  include "arch/bpstruct.h"
-#endif
-PACK_STRUCT_BEGIN
-/** DNS message header */
-struct dns_hdr {
-  PACK_STRUCT_FIELD(u16_t id);
-  PACK_STRUCT_FIELD(u8_t flags1);
-  PACK_STRUCT_FIELD(u8_t flags2);
-  PACK_STRUCT_FIELD(u16_t numquestions);
-  PACK_STRUCT_FIELD(u16_t numanswers);
-  PACK_STRUCT_FIELD(u16_t numauthrr);
-  PACK_STRUCT_FIELD(u16_t numextrarr);
-} PACK_STRUCT_STRUCT;
-PACK_STRUCT_END
-#ifdef PACK_STRUCT_USE_INCLUDES
-#  include "arch/epstruct.h"
-#endif
-#define SIZEOF_DNS_HDR 12
-
 /** DNS query message structure.
     No packing needed: only used locally on the stack. */
 struct dns_query {
@@ -915,7 +876,7 @@ dns_enqueue(const char *name, dns_found_callback found, void *callback_arg)
 
 /**
  * Resolve a hostname (string) into an IP address.
- * NON-BLOCKING callback version for use with raw API!!!
+ * NON-BLOCKING callback version for use with raw API!
  *
  * Returns immediately with one of err_t return codes:
  * - ERR_OK if hostname is a valid IP address string or the host

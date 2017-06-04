@@ -56,12 +56,15 @@
 #include "ethernetif.h"
 #include "queue.h"
 #include "lwip_netconf.h"
-#include "ethernet_mii/ethernet_mii.h"
 
 //#include "lwip/ethip6.h" //Add for ipv6
 
 #include <platform/platform_stdlib.h>
 #include "platform_opts.h"
+
+#if CONFIG_ETHERNET
+#include "ethernet_mii/ethernet_mii.h"
+#endif
 
 #if CONFIG_WLAN
 #include <lwip_intf.h>
@@ -86,6 +89,13 @@
 
 static void arp_timer(void *arg);
 
+#if LWIP_NETIF_HOSTNAME
+char lwip_host_name[NET_IF_NUM][LWIP_NETIF_HOSTNAME_SIZE] = {
+		DEF_HOSTNAME"0",
+		DEF_HOSTNAME"1",
+		DEF_HOSTNAME"2"
+};
+#endif
 
 /**
  * In this function, the hardware should be initialized.
@@ -129,8 +139,6 @@ static void low_level_init(struct netif *netif)
 
 static err_t low_level_output(struct netif *netif, struct pbuf *p)
 {
-
-
   /* Refer to eCos lwip eth_drv_send() */
 	struct eth_drv_sg sg_list[MAX_ETH_DRV_SG];
 	int sg_len = 0;
@@ -159,6 +167,7 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
 	return ERR_OK;
 }
 
+#if CONFIG_ETHERNET
 /*for ethernet mii interface*/
 static err_t low_level_output_mii(struct netif *netif, struct pbuf *p)
 {
@@ -177,7 +186,7 @@ static err_t low_level_output_mii(struct netif *netif, struct pbuf *p)
 	}
 	return ERR_OK;
 }
-
+#endif
 	
 /**
  * Should allocate a pbuf and transfer the bytes of the incoming
@@ -241,7 +250,7 @@ void ethernetif_recv(struct netif *netif, int total_len)
 
 }
 
-
+#if CONFIG_ETHERNET
 void ethernetif_mii_recv(struct netif *netif, int total_len)
 {
 	struct eth_drv_sg sg_list[MAX_ETH_DRV_SG];
@@ -270,6 +279,7 @@ void ethernetif_mii_recv(struct netif *netif, int total_len)
 		pbuf_free(p);
 
 }
+#endif
 /**
  * Should be called at the beginning of the program to set up the
  * network interface. It calls the function low_level_init() to do the
@@ -289,9 +299,9 @@ err_t ethernetif_init(struct netif *netif)
 #if LWIP_NETIF_HOSTNAME
 	/* Initialize interface hostname */
 	if(netif->name[1] == '0')
-		netif->hostname = "lwip0";
+		netif->hostname = lwip_host_name[0];
 	else if(netif->name[1] == '1')
-		netif->hostname = "lwip1";
+		netif->hostname = lwip_host_name[1];
 #endif /* LWIP_NETIF_HOSTNAME */
 
 	netif->output = etharp_output;
@@ -308,12 +318,13 @@ err_t ethernetif_init(struct netif *netif)
 	return ERR_OK;
 }
 
+#if CONFIG_ETHERNET
 err_t ethernetif_mii_init(struct netif *netif)
 {
 	LWIP_ASSERT("netif != NULL", (netif != NULL));
 
 #if LWIP_NETIF_HOSTNAME
-		netif->hostname = "lwip2";		
+		netif->hostname = lwip_host_name[2];
 #endif /* LWIP_NETIF_HOSTNAME */
 
 	netif->output = etharp_output;
@@ -329,6 +340,7 @@ err_t ethernetif_mii_init(struct netif *netif)
 
 	return ERR_OK;
 }
+#endif
 
 static void arp_timer(void *arg)
 {

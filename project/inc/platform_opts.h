@@ -13,7 +13,7 @@
 /**
  * For AT cmd Log service configurations
  */
-#define SUPPORT_LOG_SERVICE	1
+#define SUPPORT_LOG_SERVICE	0
 #if SUPPORT_LOG_SERVICE
 #define LOG_SERVICE_BUFLEN     100 //can't larger than UART_LOG_CMD_BUFLEN(127)
 #define CONFIG_LOG_HISTORY	0
@@ -149,7 +149,7 @@
 #undef CONFIG_LOG_SERVICE_LOCK
 #define CONFIG_LOG_SERVICE_LOCK 1
 #else
-#define CONFIG_EXAMPLE_WLAN_FAST_CONNECT 1
+#define CONFIG_EXAMPLE_WLAN_FAST_CONNECT 0
 #endif
 
 //#define CONFIG_EXAMPLE_UART_ADAPTER 1

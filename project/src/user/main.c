@@ -33,14 +33,22 @@
 #include "user/playerconfig.h"
 #include "user/atcmd_user.h"
 #include "main.h"
+#include "wifi_api.h"
+#include "rtl8195a/rtl_libc.h"
+
+/* ---------------------------------------------------
+  *  Customized Signature (Image Name)
+  * ---------------------------------------------------*/
+#include "section_config.h"
+SECTION(".custom.validate.rodata")
+const unsigned char cus_sig[32] = "MP3 Stereo";
+
 
 #define DEBUG_MAIN_LEVEL 1
 
-//Priorities of the reader and the decoder thread. Higher = higher prio. (ESP8266!)
-//#define PRIO_READER (configMAX_PRIORITIES - 2) // (tskIDLE_PRIORITY + PRIORITIE_OFFSET)
-//#define PRIO_MAD (PRIO_READER - 1) // PRIO_READER + n; (TCPIP_THREAD_PRIO = (configMAX_PRIORITIES - 2))
-#define PRIO_MAD (tskIDLE_PRIORITY + 1 + PRIORITIE_OFFSET)
-#define PRIO_READER (PRIO_MAD + 7) // max 11 ?
+//Priorities of the reader and the decoder thread. Higher = higher prio.
+#define PRIO_MAD (tskIDLE_PRIORITY + 3 + PRIORITIE_OFFSET)
+#define PRIO_READER (PRIO_MAD)
 
 
 #define mMIN(a, b)  ((a < b)? a : b)
@@ -64,7 +72,19 @@ static char sampCntAdd;
 static char sampDelCnt;
 static int sampCnt;
 #endif
+#define ID_FEEP_MP3 0x5000
 
+mp3_server_setings mp3_serv = {0,{0}}; //{ PLAY_PORT, { PLAY_SERVER }};
+
+LOCAL int mp3_cfg_read(void)
+{
+	rtl_memset(&mp3_serv, 0, sizeof(mp3_serv));
+	if(flash_read_cfg(&mp3_serv, ID_FEEP_MP3, sizeof(mp3_serv.port) + 2) >= sizeof(mp3_serv.port) + 2) {
+		mp3_serv.port = PLAY_PORT;
+		strcpy(mp3_serv.url, PLAY_SERVER);
+	}
+	return mp3_serv.port;
+}
 
 // Called by the NXP modifications of libmad. It passes us (for the mono synth)
 // 32 16-bit samples.
@@ -121,7 +141,7 @@ static enum mad_flow input(struct mad_stream *stream) {
 			// We both silence the output as well as wait a while by pushing silent samples into the i2s system.
 			// This waits for about 200mS
 #if DEBUG_MAIN_LEVEL > 1
-			DBG_8195A("FIFO: Buffer Underrun\n");
+			// DBG_8195A("FIFO: Buffer Underrun\n");
 #endif
 			for (n = 0; n < 441*2; n++)	sampToOut(0);
 		} else {
@@ -149,7 +169,7 @@ static enum mad_flow input(struct mad_stream *stream) {
 }
 
 //Routine to print out an error
-static enum mad_flow error(void *data, struct mad_stream *stream,
+LOCAL  enum mad_flow error(void *data, struct mad_stream *stream,
 		struct mad_frame *frame) {
 #if DEBUG_MAIN_LEVEL > 0
 	DBG_8195A("MAD: Dec err 0x%04x (%s)\n", stream->error,
@@ -158,11 +178,11 @@ static enum mad_flow error(void *data, struct mad_stream *stream,
 	return MAD_FLOW_CONTINUE;
 }
 
-void tskreader(void *pvParameters);
+LOCAL void tskreader(void *pvParameters);
 
 //This is the main mp3 decoding task. It will grab data from the input buffer FIFO in the SPI ram and
 //output it to the I2S port.
-void tskmad(void *pvParameters) {
+LOCAL void tskmad(void *pvParameters) {
 	//Initialize I2S
 	if (i2sInit(-1, I2S_DMA_PAGE_WAIT_MS_MIN * I2S_DMA_PAGE_SIZE_MS_96K, WL_24b)) { // min 2 ms x I2S_DMA_PAGE_SIZE buffers
 		//Allocate structs needed for mp3 decoding
@@ -245,7 +265,7 @@ exit:
 	vTaskDelete(NULL);
 }
 
-int getIpForHost(const char *host, struct sockaddr_in *ip) {
+LOCAL int getIpForHost(const char *host, struct sockaddr_in *ip) {
 	struct hostent *he;
 	struct in_addr **addr_list;
 	he = gethostbyname(host);
@@ -259,11 +279,11 @@ int getIpForHost(const char *host, struct sockaddr_in *ip) {
 
 //Open a connection to a webserver and request an URL. Yes, this possibly is one of the worst ways to do this,
 //but RAM is at a premium here, and this works for most of the cases.
-int openConn(const char *streamHost, const char *streamPath, int streamPort) {
+LOCAL  int openConn(const char *streamHost, const char *streamPath, int streamPort) {
 	int n = 5;
 	while (tskreader_enable == 1) {
 		struct sockaddr_in remote_ip;
-		bzero(&remote_ip, sizeof(struct sockaddr_in));
+		rtl_memset(&remote_ip, 0, sizeof(struct sockaddr_in));
 		if (!getIpForHost(streamHost, &remote_ip)) {
 			vTaskDelay(1000 / portTICK_RATE_MS);
 			if(n--)	continue;
@@ -310,7 +330,7 @@ int openConn(const char *streamHost, const char *streamPath, int streamPort) {
 }
 
 
-int http_head_read(unsigned char *buf, int len, int ff) {
+LOCAL int http_head_read(unsigned char *buf, int len, int ff) {
 	int flg_head = 0;
 	int n, ret = 0;
 	if ((n = read(ff, buf, len)) <= 0)	return 0;
@@ -355,7 +375,7 @@ int http_head_read(unsigned char *buf, int len, int ff) {
 }
 
 //Reader task. This will try to read data from a TCP socket into the SPI fifo buffer.
-void tskreader(void *pvParameters) {
+LOCAL void tskreader(void *pvParameters) {
 	char wbuf[SOCK_READ_BUF];
 	int n;
 	if (RamFifoInit(mMIN(xPortGetFreeHeapSize() - MIN_FIFO_HEAP, MAX_FIFO_SIZE))) {
@@ -469,9 +489,9 @@ void connect_start(void) {
 		//Fire up the reader task. The reader task will fire up the MP3 decoder as soon
 		//as it has read enough MP3 data.
 		tskreader_enable = 1;
-		if (xTaskCreate(tskreader, "tskreader", 300, NULL, PRIO_READER,	NULL) != pdPASS) {
+		if (xTaskCreate(tskreader, "tskreader", 320, NULL, PRIO_READER,	NULL) != pdPASS) {
 #if DEBUG_MAIN_LEVEL > 0
-			DBG_8195A("\n\r%s xTaskCreate(tskreader) failed", __FUNCTION__);
+			DBG_8195A("\n%s xTaskCreate(tskreader) failed!\n", __FUNCTION__);
 #endif
 			tskreader_enable = 0;
 		}
@@ -483,49 +503,64 @@ void connect_start(void) {
 #endif
 }
 
+/* RAM/TCM/Heaps info */
+void ShowMemInfo(void)
+{
+	printf("\nCLK CPU\t\t%d Hz\nRAM heap\t%d bytes\nTCM heap\t%d bytes\n",
+			HalGetCpuClk(), xPortGetFreeHeapSize(), tcm_heap_freeSpace());
+}
+
+
+LOCAL void user_init_thrd(void) {
+
+	mp3_cfg_read();
+
+	wifi_init();
+
+	/* Initilaize the console stack */
+	console_init();
+
+
+	/* Kill init thread after all init tasks done */
+	vTaskDelete(NULL);
+}
+
 
 /**
  * @brief  Main program.
  * @param  None
  * @retval None
  */
-
-void main(void) {
-#if DEBUG_MAIN_LEVEL > 2
+void main(void)
+{
+#if DEBUG_MAIN_LEVEL > 3
 	 ConfigDebugErr  = -1;
-	 ConfigDebugInfo = -1;
+	 ConfigDebugInfo =  ~(_DBG_SPI_FLASH_);//|_DBG_TCM_HEAP_);
 	 ConfigDebugWarn = -1;
+	 CfgSysDebugErr = -1;
+	 CfgSysDebugInfo = -1;
+	 CfgSysDebugWarn = -1;
 #endif
-/*
-	 if ( rtl_cryptoEngine_init() != 0 ) DBG_8195A("crypto engine init failed\r\n");
-*/
-#if defined(CONFIG_CPU_CLK)
-		HalCpuClkConfig(CPU_CLOCK_SEL_VALUE); // 0 - 166666666 Hz, 1 - 83333333 Hz, 2 - 41666666 Hz, 3 - 20833333 Hz, 4 - 10416666 Hz, 5 - 4000000 Hz
-		HAL_LOG_UART_ADAPTER pUartAdapter;
-		pUartAdapter.BaudRate = RUART_BAUD_RATE_38400;
-		HalLogUartSetBaudRate(&pUartAdapter);
-		SystemCoreClockUpdate();
-		En32KCalibration();
+
+#ifdef CONFIG_WDG_ON_IDLE
+	HAL_PERI_ON_WRITE32(REG_SOC_FUNC_EN, HAL_PERI_ON_READ32(REG_SOC_FUNC_EN) & 0x1FFFFF);
+	WDGInitial(CONFIG_WDG_ON_IDLE * 1000); // 5 s
+	WDGStart();
 #endif
-#if DEBUG_MAIN_LEVEL > 1
-	DBG_INFO_MSG_ON(_DBG_TCM_HEAP_); // On Debug TCM MEM
+
+#if (defined(CONFIG_CRYPTO_STARTUP) && (CONFIG_CRYPTO_STARTUP))
+	 if(rtl_cryptoEngine_init() != 0 ) {
+		 DBG_8195A("Crypto engine init failed!\n");
+	 }
 #endif
+
 #if DEBUG_MAIN_LEVEL > 0
-	vPortFree(pvPortMalloc(4)); // Init RAM heap 
-	fATST(NULL); // RAM/TCM/Heaps info
+	vPortFree(pvPortMalloc(4)); // Init RAM heap
+	ShowMemInfo(); // RAM/TCM/Heaps info
 #endif
-	/* pre-processor of application example */
-	pre_example_entry();
 
-	/* wlan intialization */
-#if defined(CONFIG_WIFI_NORMAL) && defined(CONFIG_NETWORK)
-	wlan_network();
-#endif
-	/* Initialize log uart and at command service */
-	console_init();
-
-	/* Execute application example */
-	example_entry();
+	/* wlan & user_start intialization */
+	xTaskCreate(user_init_thrd, "user_init", 1024, NULL, tskIDLE_PRIORITY + 0 + PRIORITIE_OFFSET, NULL);
 
 	/*Enable Schedule, Start Kernel*/
 #if defined(CONFIG_KERNEL) && !TASK_SCHEDULER_DISABLED
@@ -536,3 +571,49 @@ void main(void) {
 	RtlConsolTaskRom(NULL);
 #endif
 }
+
+//================================
+//--- CONSOLE ---
+
+// MP3 Set server, Close/Open connect
+LOCAL void fATWS(int argc, char *argv[]){
+    	if (argc == 2) {
+    		StrUpr(argv[1]);
+    		if(argv[1][0] == '?') {
+			    printf("ATWS: %s,%d\n", mp3_serv.url, mp3_serv.port);
+    		    return;
+    		}
+    		else if(argv[1][0] == 'O') { // strcmp(argv[1], "open") == 0
+    		    printf("ATWS: open %s:%d\n", mp3_serv.url, mp3_serv.port);
+    			connect_close();
+    		    return;
+    		}
+    		else if(argv[1][0] == 'C') { // strcmp(argv[1], "close") == 0
+    		    printf("ATWS: close\n");
+    			connect_close();
+    		    return;
+    		}
+    		else if(argv[1][0] == 'R') { // strcmp(argv[1], "read") == 0
+    			mp3_cfg_read();
+    			connect_start();
+    		    return;
+    		}
+    		else if(argv[1][0] == 'S') { // strcmp(argv[1], "save") == 0
+			    printf("%s: %s,%d\n", argv[0], mp3_serv.url, mp3_serv.port);
+    			if(flash_write_cfg(&mp3_serv, ID_FEEP_MP3, strlen(mp3_serv.port) + strlen(mp3_serv.url)))
+    			    printf("ATWS: saved\n", mp3_serv.url, mp3_serv.port);
+    		    return;
+    		}
+    	}
+    	else if (argc >= 3 ) {
+    		strcpy((char *)mp3_serv.url, (char*)argv[1]);
+        	mp3_serv.port = atoi((char*)argv[2]);
+        	printf("%s: %s,%d\r\n", argv[0], mp3_serv.url, mp3_serv.port);
+        	connect_start();
+        	return;
+    	}
+}
+
+MON_RAM_TAB_SECTION COMMAND_TABLE console_commands_main[] = {
+		{"ATWS", 1, fATWS, "=<URL,PORT>: MP3 Connect to URL\nATWS=<c>: Close MP3\nATWS=<r>: Read MP3 URL\nATWS=<s>: Save MP3 URL\nATWS=<?>: URL Info"}
+};

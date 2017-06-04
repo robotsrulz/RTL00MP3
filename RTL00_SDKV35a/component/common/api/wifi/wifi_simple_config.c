@@ -530,8 +530,13 @@ enum sc_result SC_parse_scan_result_and_connect(scan_buf_arg* scan_buf, rtw_netw
 						ret = SC_TARGET_CHANNEL_SCAN_FAIL;
 						goto sc_connect_wifi_fail;
 					}
-					ret = wifi_connect_bssid(scan_result.mac,  (char*)wifi->ssid.val,  SC_translate_iw_security_mode(scan_result.sec_mode), 
-						(char*)wifi->password,  ETH_ALEN,  wifi->ssid.len,  wifi->password_len,  0,  NULL);
+					ret = wifi_connect(
+							scan_result.mac,  
+							1,
+							(char*)wifi->ssid.val,  
+							SC_translate_iw_security_mode(scan_result.sec_mode), 
+							(char*)wifi->password,  
+							0,  NULL);
 					if (ret == RTW_SUCCESS)
 						goto sc_connect_wifi_success;
 				}
@@ -691,8 +696,13 @@ enum sc_result SC_connect_to_AP(void)
 			goto wifi_connect_fail;
 		}
         rtw_join_status = 0;//clear simple config status
-		ret = wifi_connect_bssid(g_bssid,  (char*)wifi.ssid.val,  wifi.security_type,  (char*)wifi.password,
-									  ETH_ALEN,  wifi.ssid.len,  wifi.password_len,  wifi.key_id,  NULL);
+		ret = wifi_connect(g_bssid,  
+				1,
+				(char*)wifi.ssid.val,  
+				wifi.security_type,  
+				(char*)wifi.password,						  
+				wifi.key_id,  
+				NULL);
 
 		if (ret == RTW_SUCCESS)
 			goto wifi_connect_success;
@@ -999,7 +1009,7 @@ void print_simple_config_result(enum sc_result sc_code)
 	printf("\n");
 	switch (sc_code) {
 	case SC_NO_CONTROLLER_FOUND:
-		printf("Simple Config timeout!! Can't get Ap profile. Please try again\n"); 
+		printf("Simple Config timeout! Can't get Ap profile. Please try again\n"); 
 	break;
 	case SC_CONTROLLER_INFO_PARSE_FAIL:
 		printf("Simple Config fail, cannot parse target ap info from controller\n");
@@ -1014,7 +1024,7 @@ void print_simple_config_result(enum sc_result sc_code)
 		printf("Simple Config fail, cannot get dhcp ip address\n");
 	break;
 	case SC_UDP_SOCKET_CREATE_FAIL:
-		printf("Simple Config Ack socket create fail!!!\n");
+		printf("Simple Config Ack socket create fail!\n");
 	break;
 	case SC_TERMINATE:
 		printf("Simple Config terminate\n");
