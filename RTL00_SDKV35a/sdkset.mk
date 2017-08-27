@@ -27,7 +27,7 @@ LFLAGS = -mcpu=cortex-m3 -mthumb -g -Os -nostartfiles --specs=nano.specs
 else
 LFLAGS = -mcpu=cortex-m3 -mthumb -g -Os -nostartfiles -nostdlib
 endif
-LFLAGS += -Wl,--gc-sections -Wl,--cref -Wl,--entry=Reset_Handler -Wl,--no-enum-size-warning -Wl,--no-wchar-size-warning -Wl,-nostdlib
+LFLAGS += -Wl,--gc-sections -Wl,--cref -Wl,--entry=Reset_Handler -Wl,--no-enum-size-warning -Wl,--no-wchar-size-warning -Wl,-nostdlib -Wl,--no-check-sections
 
 # LIBS
 # -------------------------------------------------------------------
@@ -232,6 +232,7 @@ SRC_C += sdk/component/common/mbed/targets/hal/rtl8195a/flash_eep.c
 endif
 
 #peripheral - hal
+SRC_C += sdk/component/soc/realtek/8195a/fwlib/src/bitband_io.c
 SRC_C += sdk/component/soc/realtek/8195a/fwlib/src/hal_32k.c
 SRC_C += sdk/component/soc/realtek/8195a/fwlib/src/hal_adc.c
 SRC_C += sdk/component/soc/realtek/8195a/fwlib/src/hal_gdma.c
