@@ -49,6 +49,7 @@ application: build_info $(SRC_O) $(DRAM_O) $(BOOT_O)
 	@echo "Link ($(TARGET))"
 #	@echo "==========================================================="
 	@mkdir -p $(BIN_DIR) $(OBJ_DIR)
+	@echo $(OBJ_LIST) > $(OBJ_DIR)/obj_list.lst
 	@$(file > $(OBJ_DIR)/obj_list.lst,$(OBJ_LIST))
 	@$(LD) $(LFLAGS) -o $(ELFFILE) @$(OBJ_DIR)/obj_list.lst $(LIBFLAGS) -T$(LDFILE)
 	@$(OBJDUMP) -d $(ELFFILE) > $(OBJ_DIR)/$(TARGET).asm

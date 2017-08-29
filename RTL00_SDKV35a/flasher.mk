@@ -6,7 +6,8 @@ include $(SDK_PATH)paths.mk
 #FLASHER = stlink-v2-1
 #FLASHER = stlink-v2
 FLASHER ?= Jlink
-JLINK_PATH ?= D:/MCU/SEGGER/JLink_V612i/
+#JLINK_PATH ?= D:/MCU/SEGGER/JLink_V612i/
+JLINK_PATH ?= C:/Program\ Files\ \(x86\)/SEGGER/JLink_V612j/
 #---------------------------
 # Default
 #---------------------------
@@ -103,8 +104,8 @@ genbin23: $(ELFFILE) $(OTA_IMAGE) $(FLASH_IMAGE) _endgenbin
 
 _endgenbin:
 	@echo "-----------------------------------------------------------"
-	@echo "Image ($(OTA_IMAGE)) size $(shell printf '%d\n' $$(( $$(stat --printf="%s" $(OTA_IMAGE)) )) ) bytes"
-	@echo "Image ($(FLASH_IMAGE)) size $(shell printf '%d\n' $$(( $$(stat --printf="%s" $(FLASH_IMAGE)) )) ) bytes"
+	@echo "Image ($(OTA_IMAGE)) size $(shell printf '%d\n' $$(( $$(stat --format="%s" $(OTA_IMAGE)) )) ) bytes"
+	@echo "Image ($(FLASH_IMAGE)) size $(shell printf '%d\n' $$(( $$(stat --format="%s" $(FLASH_IMAGE)) )) ) bytes"
 	@echo "==========================================================="  
 
 ifeq ($(FLASHER_TYPE), Jlink)
@@ -129,13 +130,13 @@ flashburn:
 	@echo define call3>>$(FLASHER_PATH)flash_file.jlink
 	@echo FlasherWrite build/bin/ram_all.bin '$$'Image2Addr '$$'Image2Size>>$(FLASHER_PATH)flash_file.jlink
 	@echo end>>$(FLASHER_PATH)flash_file.jlink
-	@cmd /K start $(JLINK_PATH)$(JLINK_GDBSRV) -device Cortex-M3 -if SWD -ir -endian little -speed 1000 
+	@cmd /K start $(JLINK_PATH)$(JLINK_GDBSRV) -device Cortex-M3 -if SWD -ir -endian little -speed 1000
 	@$(GDB) -x $(FLASHER_PATH)gdb_wrflash.jlink
 	#@taskkill /F /IM $(JLINK_GDBSRV)
 
 flashwebfs:
 	@echo define call1>$(FLASHER_PATH)file_info.jlink
-	@echo set '$$'ImageSize = $(shell printf '0x%X\n' $$(stat --printf="%s" $(BIN_DIR)/WEBFiles.bin))>>$(FLASHER_PATH)file_info.jlink
+	@echo set '$$'ImageSize = $(shell printf '0x%X\n' $$(stat --format="%s" $(BIN_DIR)/WEBFiles.bin))>>$(FLASHER_PATH)file_info.jlink
 	@echo set '$$'ImageAddr = 0x0D0000>>$(FLASHER_PATH)file_info.jlink
 	@echo end>>$(FLASHER_PATH)file_info.jlink
 	@echo define call2>>$(FLASHER_PATH)file_info.jlink
@@ -147,7 +148,7 @@ flashwebfs:
 
 flashespfs:
 	@echo define call1>$(FLASHER_PATH)file_info.jlink
-	@echo set '$$'ImageSize = $(shell printf '0x%X\n' $$(stat --printf="%s" $(BIN_DIR)/webpages.espfs))>>$(FLASHER_PATH)file_info.jlink
+	@echo set '$$'ImageSize = $(shell printf '0x%X\n' $$(stat --format="%s" $(BIN_DIR)/webpages.espfs))>>$(FLASHER_PATH)file_info.jlink
 	@echo set '$$'ImageAddr = 0x0D0000>>$(FLASHER_PATH)file_info.jlink
 	@echo end>>$(FLASHER_PATH)file_info.jlink
 	@echo define call2>>$(FLASHER_PATH)file_info.jlink
@@ -227,7 +228,7 @@ ifdef PADDINGSIZE
 endif	
 	@cat $(RAM2P_IMAGE) >> $(FLASH_IMAGE)
 	@cat $(RAM3P_IMAGE) >> $(FLASH_IMAGE)
-#	@echo "Image ($(FLASH_IMAGE)) size $(shell printf '%d\n' $$(( $$(stat --printf="%s" $(FLASH_IMAGE)) )) ) bytes"
+#	@echo "Image ($(FLASH_IMAGE)) size $(shell printf '%d\n' $$(( $$(stat --format="%s" $(FLASH_IMAGE)) )) ) bytes"
 #	@echo "==========================================================="
 #	@rm $(BIN_DIR)/ram_*.p.bin  
 	
